@@ -12,9 +12,9 @@ export default function TurnOrderPanel() {
     .filter(unit => unit && unit.hp > 0)
   
   return (
-    <div className="bg-gray-800 p-4 rounded-lg shadow-lg">
-      <div className="flex justify-between items-center mb-3">
-        <h3 className="text-lg font-semibold">Turn Order</h3>
+    <div className="bg-gray-800 p-3 rounded-lg shadow-lg">
+      <div className="flex justify-between items-center mb-2">
+        <h3 className="text-base font-semibold">Turn Order</h3>
         <span className="text-sm text-gray-400">Round {round}</span>
       </div>
       

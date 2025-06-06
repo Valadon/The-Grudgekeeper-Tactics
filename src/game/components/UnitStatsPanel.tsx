@@ -13,8 +13,8 @@ export default function UnitStatsPanel() {
   }
   
   return (
-    <div className="bg-gray-800 p-4 rounded-lg shadow-lg">
-      <h3 className="text-lg font-semibold mb-3">Current Unit</h3>
+    <div className="bg-gray-800 p-3 rounded-lg shadow-lg">
+      <h3 className="text-base font-semibold mb-2">Current Unit</h3>
       
       <div className="space-y-2">
         <div className="flex justify-between">

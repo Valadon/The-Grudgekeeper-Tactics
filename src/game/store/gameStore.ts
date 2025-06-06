@@ -16,6 +16,8 @@ interface GameStore extends GameState {
   endTurn: () => void
   hoverCell: (position: Position | null) => void
   restartGame: () => void
+  clearLastCombat: () => void
+  processEnemyTurn: () => void
 }
 
 const initializeGrid = (): Cell[][] => {
@@ -107,6 +109,11 @@ export const useGameStore = create<GameStore>()(
         if (firstUnit) {
           firstUnit.isActive = true
           firstUnit.actionsRemaining = ACTIONS_PER_TURN
+          
+          // If first unit is an enemy, process AI
+          if (firstUnit.type === 'enemy') {
+            setTimeout(() => get().processEnemyTurn(), 500)
+          }
         }
       })
     },
@@ -404,6 +411,11 @@ export const useGameStore = create<GameStore>()(
           nextUnit.isActive = true
           nextUnit.actionsRemaining = ACTIONS_PER_TURN
           state.currentUnitId = nextUnit.id
+          
+          // If it's an enemy turn, process AI after a short delay
+          if (nextUnit.type === 'enemy') {
+            setTimeout(() => get().processEnemyTurn(), 500)
+          }
         }
         
         // Clear selections
@@ -421,6 +433,90 @@ export const useGameStore = create<GameStore>()(
     
     restartGame: () => {
       get().initializeGame()
+    },
+    
+    clearLastCombat: () => {
+      set((state) => {
+        state.lastCombat = undefined
+      })
+    },
+    
+    processEnemyTurn: () => {
+      const state = get()
+      const currentUnit = state.units.find(u => u.id === state.currentUnitId)
+      
+      if (!currentUnit || currentUnit.type !== 'enemy' || currentUnit.hp <= 0) {
+        return
+      }
+      
+      // Simple AI: Move towards nearest dwarf and attack if in range
+      const dwarves = state.units.filter(u => u.type === 'dwarf' && u.hp > 0)
+      if (dwarves.length === 0) return
+      
+      // Find nearest dwarf
+      let nearestDwarf: Unit | null = null
+      let shortestDistance = Infinity
+      
+      dwarves.forEach(dwarf => {
+        const distance = calculateDistance(currentUnit.position, dwarf.position)
+        if (distance < shortestDistance) {
+          shortestDistance = distance
+          nearestDwarf = dwarf
+        }
+      })
+      
+      if (!nearestDwarf) return
+      
+      // Process AI actions with delays for visibility
+      const processActions = async () => {
+        // Check if can attack first
+        const attackRange = currentUnit.rangeWeapon || 1
+        if (shortestDistance <= attackRange && getLineOfSight(currentUnit.position, nearestDwarf.position, state.grid)) {
+          // Attack the nearest dwarf
+          get().selectAction('strike')
+          await new Promise(resolve => setTimeout(resolve, 500))
+          get().attackUnit(currentUnit.id, nearestDwarf.id)
+          await new Promise(resolve => setTimeout(resolve, 1000))
+        }
+        
+        // Get fresh state and check if still has actions
+        const freshState = get()
+        const freshUnit = freshState.units.find(u => u.id === currentUnit.id)
+        if (freshUnit && freshUnit.actionsRemaining > 0 && shortestDistance > attackRange) {
+          get().selectAction('move')
+          await new Promise(resolve => setTimeout(resolve, 500))
+          
+          // Get valid moves and find the one closest to target
+          const validMoves = getMovementRange(
+            freshUnit.position,
+            freshUnit.speed,
+            freshState.grid,
+            freshState.units
+          )
+          
+          let bestMove = freshUnit.position
+          let bestDistance = shortestDistance
+          
+          validMoves.forEach(move => {
+            const distance = calculateDistance(move, nearestDwarf.position)
+            if (distance < bestDistance) {
+              bestDistance = distance
+              bestMove = move
+            }
+          })
+          
+          if (bestMove !== freshUnit.position) {
+            get().moveUnit(currentUnit.id, bestMove)
+            await new Promise(resolve => setTimeout(resolve, 1000))
+          }
+        }
+        
+        // End turn after actions
+        get().endTurn()
+      }
+      
+      // Start processing with a small delay
+      setTimeout(() => processActions(), 500)
     }
   }))
 )

@@ -49,8 +49,13 @@ export default function DiceRoll({
   const total = roll + bonus - penalty
   
   return (
-    <div className="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-50">
-      <div className="bg-gray-900 border-2 border-gray-700 rounded-lg p-6 shadow-2xl min-w-[300px]">
+    <>
+      {/* Semi-transparent backdrop */}
+      <div className="fixed inset-0 bg-black bg-opacity-50 z-40" />
+      
+      {/* Dice roll positioned higher on screen */}
+      <div className="fixed top-1/3 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-50">
+        <div className="bg-gray-900 border-2 border-gray-700 rounded-lg p-6 shadow-2xl min-w-[300px]">
         <div className="text-center">
           {/* Dice animation */}
           <div className="mb-4">
@@ -98,5 +103,6 @@ export default function DiceRoll({
         </div>
       </div>
     </div>
+    </>
   )
 }

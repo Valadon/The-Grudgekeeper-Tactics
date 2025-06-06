@@ -1,6 +1,6 @@
 'use client'
 
-import { useRef, useEffect, useState } from 'react'
+import { useRef, useEffect, useCallback } from 'react'
 import { useGameStore } from '../store/gameStore'
 import { GRID_SIZE, CELL_SIZE, UNIT_COLORS, UNIT_INITIALS } from '../constants'
 import { Position } from '../types'
@@ -25,8 +25,6 @@ type HealAnimation = {
 
 export default function GameBoard() {
   const canvasRef = useRef<HTMLCanvasElement>(null)
-  const [damageAnimations, setDamageAnimations] = useState<DamageAnimation[]>([])
-  const [healAnimations, setHealAnimations] = useState<HealAnimation[]>([])
   const {
     grid,
     units,
@@ -43,6 +41,11 @@ export default function GameBoard() {
     hoverCell
   } = useGameStore()
   
+  // Store animation refs to prevent state updates during animations
+  const animationFrameRef = useRef<number>()
+  const damageAnimationsRef = useRef<DamageAnimation[]>([])
+  const healAnimationsRef = useRef<HealAnimation[]>([])
+  
   // Handle damage animations when combat occurs
   useEffect(() => {
     if (lastCombat && lastCombat.hit && lastCombat.damage > 0) {
@@ -56,11 +59,11 @@ export default function GameBoard() {
           critical: lastCombat.critical,
           startTime: Date.now()
         }
-        setDamageAnimations(prev => [...prev, newAnimation])
+        damageAnimationsRef.current = [...damageAnimationsRef.current, newAnimation]
         
         // Remove animation after 1.5 seconds
         setTimeout(() => {
-          setDamageAnimations(prev => prev.filter(a => a.id !== newAnimation.id))
+          damageAnimationsRef.current = damageAnimationsRef.current.filter(a => a.id !== newAnimation.id)
         }, 1500)
       }
     }
@@ -125,7 +128,11 @@ export default function GameBoard() {
     hoverCell(null)
   }
   
-  useEffect(() => {
+  // Extract current unit for reuse
+  const currentUnit = units.find(u => u.id === currentUnitId)
+  
+  // Memoized draw function to prevent unnecessary redraws
+  const drawGame = useCallback(() => {
     const canvas = canvasRef.current
     if (!canvas) return
     
@@ -163,7 +170,7 @@ export default function GameBoard() {
           if (isValidMove) {
             ctx.fillStyle = selectedAction === 'move' 
               ? 'rgba(59, 130, 246, 0.3)'  // Blue for movement
-              : currentUnit.class === 'delver'
+              : currentUnit?.class === 'delver'
               ? 'rgba(168, 85, 247, 0.3)'  // Purple for scanner
               : 'rgba(245, 158, 11, 0.3)'  // Yellow for turret placement
             ctx.fillRect(pixelX, pixelY, CELL_SIZE, CELL_SIZE)
@@ -327,8 +334,8 @@ export default function GameBoard() {
       ctx.fillRect(barX, barY, barWidth * hpPercent, barHeight)
     })
     
-    // Draw damage animations
-    damageAnimations.forEach(animation => {
+    // Draw damage animations from ref
+    damageAnimationsRef.current.forEach(animation => {
       const elapsed = Date.now() - animation.startTime
       const progress = Math.min(elapsed / 1500, 1)
       
@@ -367,10 +374,40 @@ export default function GameBoard() {
       
       ctx.restore()
     })
-  }, [grid, units, currentUnitId, selectedAction, validMoves, validTargets, hoveredCell, damageAnimations, revealedCells])
+  }, [grid, units, currentUnitId, selectedAction, validMoves, validTargets, hoveredCell, revealedCells, currentUnit])
+  
+  // Main render effect - only redraws when game state changes
+  useEffect(() => {
+    drawGame()
+  }, [drawGame])
+  
+  // Animation loop for damage numbers only
+  useEffect(() => {
+    let lastTime = 0
+    
+    const animate = (timestamp: number) => {
+      // Only redraw if we have animations
+      if (damageAnimationsRef.current.length > 0 || healAnimationsRef.current.length > 0) {
+        // Throttle to 30 FPS
+        if (timestamp - lastTime > 33) {
+          drawGame()
+          lastTime = timestamp
+        }
+      }
+      animationFrameRef.current = requestAnimationFrame(animate)
+    }
+    
+    animationFrameRef.current = requestAnimationFrame(animate)
+    
+    return () => {
+      if (animationFrameRef.current) {
+        cancelAnimationFrame(animationFrameRef.current)
+      }
+    }
+  }, [drawGame])
   
   return (
-    <div className="bg-gray-800 p-4 rounded-lg shadow-lg">
+    <div className="bg-gray-800 p-2 lg:p-3 rounded-lg shadow-lg">
       <canvas
         ref={canvasRef}
         width={GRID_SIZE * CELL_SIZE}
