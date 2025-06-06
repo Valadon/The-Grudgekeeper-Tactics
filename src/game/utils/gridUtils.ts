@@ -52,7 +52,7 @@ export const getLineOfSight = (from: Position, to: Position, grid: Cell[][]): bo
 
 /**
  * Calculates attack penalty from cover between attacker and target
- * Checks both line-of-fire cover and adjacent cover
+ * Cover is provided by obstacles directly in the line of fire
  * @returns 0 (no cover), 2 (partial cover from crates), or 4 (hard cover from walls)
  */
 export const getCoverPenalty = (from: Position, to: Position, grid: Cell[][]): number => {
@@ -90,24 +90,8 @@ export const getCoverPenalty = (from: Position, to: Position, grid: Cell[][]): n
     }
   }
   
-  // Check for adjacent cover (target hiding behind obstacles)
-  const adjacent = getAdjacentPositions(to)
-  for (const adj of adjacent) {
-    if (adj.x >= 0 && adj.x < GRID_SIZE && adj.y >= 0 && adj.y < GRID_SIZE) {
-      const adjCell = grid[adj.y][adj.x]
-      if (adjCell.type === 'crate' || adjCell.type === 'wall') {
-        // Calculate if obstacle is between attacker and target (within 45° cone)
-        const angleToAdj = Math.atan2(adj.y - from.y, adj.x - from.x)
-        const angleToTarget = Math.atan2(to.y - from.y, to.x - from.x)
-        const angleDiff = Math.abs(angleToAdj - angleToTarget)
-        
-        if (angleDiff < Math.PI / 4) { // 45 degree cone
-          // Walls provide better cover than crates
-          coverPenalty = adjCell.type === 'wall' ? 4 : Math.max(coverPenalty, 2)
-        }
-      }
-    }
-  }
+  // Adjacent cover check removed - cover should only come from obstacles in the line of fire
+  // The previous implementation was giving cover bonuses even when there was a clear shot
   
   return coverPenalty
 }

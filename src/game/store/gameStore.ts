@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import { immer } from 'zustand/middleware/immer'
-import { GameState, Unit, Position, ActionType, Cell, CellType, CombatInfo } from '../types'
+import { GameState, Unit, Position, ActionType, Cell, CellType, CombatInfo, DwarfClass } from '../types'
 import { GRID_SIZE, STORAGE_BAY_LAYOUT, ACTIONS_PER_TURN, DWARF_STATS } from '../constants'
 import { nanoid } from 'nanoid'
 import { calculateDistance, getLineOfSight, getMovementRange, getCoverPenalty, getAdjacentPositions } from '../utils/gridUtils'
@@ -361,7 +361,7 @@ export const useGameStore = create<GameStore>()(
         if (!user) return
         
         // Get ability cost based on class
-        const abilityCost = DWARF_STATS[user.class as DwarfClass]?.abilityCost || 0
+        const abilityCost = user.type === 'dwarf' ? DWARF_STATS[user.class as DwarfClass]?.abilityCost || 0 : 0
         if (user.actionsRemaining < abilityCost) return
         
         // Execute ability based on class type
@@ -549,7 +549,7 @@ export const useGameStore = create<GameStore>()(
       const processActions = async () => {
         // Priority 1: Attack if target is in range with line of sight
         const attackRange = currentUnit.rangeWeapon || 1
-        if (shortestDistance <= attackRange && getLineOfSight(currentUnit.position, nearestDwarf.position, state.grid)) {
+        if (nearestDwarf && shortestDistance <= attackRange && getLineOfSight(currentUnit.position, nearestDwarf.position, state.grid)) {
           // Attack the nearest dwarf
           get().selectAction('strike')
           await new Promise(resolve => setTimeout(resolve, 500))
@@ -560,7 +560,7 @@ export const useGameStore = create<GameStore>()(
         // Get fresh state and check if still has actions
         const freshState = get()
         const freshUnit = freshState.units.find(u => u.id === currentUnit.id)
-        if (freshUnit && freshUnit.actionsRemaining > 0 && shortestDistance > attackRange) {
+        if (freshUnit && freshUnit.actionsRemaining > 0 && nearestDwarf && shortestDistance > attackRange) {
           get().selectAction('move')
           await new Promise(resolve => setTimeout(resolve, 500))
           
@@ -576,10 +576,12 @@ export const useGameStore = create<GameStore>()(
           let bestDistance = shortestDistance
           
           validMoves.forEach(move => {
-            const distance = calculateDistance(move, nearestDwarf.position)
-            if (distance < bestDistance) {
-              bestDistance = distance
-              bestMove = move
+            if (nearestDwarf) {
+              const distance = calculateDistance(move, nearestDwarf.position)
+              if (distance < bestDistance) {
+                bestDistance = distance
+                bestMove = move
+              }
             }
           })
           

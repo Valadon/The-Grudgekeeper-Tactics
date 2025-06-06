@@ -53,7 +53,7 @@ export default function GameBoard() {
   } = useGameStore()
   
   // Animation refs prevent React re-renders during animations
-  const animationFrameRef = useRef<number>()
+  const animationFrameRef = useRef<number | undefined>(undefined)
   const damageAnimationsRef = useRef<DamageAnimation[]>([])
   const healAnimationsRef = useRef<HealAnimation[]>([])
   

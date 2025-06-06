@@ -94,6 +94,8 @@ GamePage
 - Improved layout with more compact UI elements
 - Implemented basic enemy AI to prevent game from freezing on enemy turns
 - Enemy AI behavior: moves toward nearest dwarf and attacks when in range
+- Fixed cover system bug: removed incorrect "adjacent cover" calculation that was giving cover bonuses even with clear line of sight
+- Cover now only applies when obstacles (crates) are directly in the line of fire between attacker and target
 
 **Phase 3 - Not Yet Implemented:**
 - Smooth movement animations (sliding between squares)
