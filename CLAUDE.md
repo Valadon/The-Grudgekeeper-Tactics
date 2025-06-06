@@ -74,15 +74,31 @@ GamePage
 - Action points system (3 per turn)
 - Victory/defeat conditions
 
-**Not Yet Implemented:**
-- Special abilities for each class
-- AI for enemy units
-- Line of sight calculations
-- Cover system
+**Implemented (Phase 2 - Completed 6/6/2025):**
+- Line of Sight system with visual indicators
+- Cover system (crates provide -2 AC, walls provide -4 AC)
+- Animated dice roll display showing attack resolution
+- Range weapon visualization (circles showing max range)
+- All special abilities:
+  - Ironclad Shield Wall: Grants +2 AC to adjacent ally for 1 round
+  - Delver Ore Scanner: Reveals 3x3 area through walls (range 4)
+  - Brewmaster Combat Brew: Heals adjacent ally 2 HP
+  - Engineer Deploy Turret: Places turret unit (3 HP, 10 AC, +2 attack, 1 damage, range 4)
+- Floating damage numbers on hits
+- Status effect indicators (blue ring for Shield Wall)
+- Turret units that act on their own turn
+
+**Phase 3 - Not Yet Implemented:**
+- Enemy AI behavior
+- Smooth movement animations (sliding between squares)
+- Attack animations (unit bump toward target)
+- Victory/defeat screens with statistics
 - Sound effects
-- Multiple encounters
-- Dice roll animations
+- Aim and Defend actions
+- Wounded state at 0 HP (limited actions)
 - Combat log
+- Multiple encounters
+- Keyboard shortcuts
 
 ## Important Implementation Details
 
