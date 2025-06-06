@@ -74,7 +74,7 @@ GamePage
 - Action points system (3 per turn)
 - Victory/defeat conditions
 
-**Implemented (Phase 2 - Completed 6/6/2025):**
+**Implemented (Phase 2 - Completed 12/6/2024):**
 - Line of Sight system with visual indicators
 - Cover system (crates provide -2 AC, walls provide -4 AC)
 - Animated dice roll display showing attack resolution
@@ -88,8 +88,14 @@ GamePage
 - Status effect indicators (blue ring for Shield Wall)
 - Turret units that act on their own turn
 
+**Bug Fixes & Improvements (12/6/2024):**
+- Fixed screen flashing issues by optimizing canvas rendering
+- Fixed dice roll positioning (now appears at 1/3 from top with backdrop)
+- Improved layout with more compact UI elements
+- Implemented basic enemy AI to prevent game from freezing on enemy turns
+- Enemy AI behavior: moves toward nearest dwarf and attacks when in range
+
 **Phase 3 - Not Yet Implemented:**
-- Enemy AI behavior
 - Smooth movement animations (sliding between squares)
 - Attack animations (unit bump toward target)
 - Victory/defeat screens with statistics
@@ -99,6 +105,7 @@ GamePage
 - Combat log
 - Multiple encounters
 - Keyboard shortcuts
+- Advanced enemy AI (flanking, targeting priority, ability usage)
 
 ## Important Implementation Details
 
@@ -118,6 +125,29 @@ GamePage
 - Units act in descending initiative order
 - Rounds increment when turn order wraps
 
+## Code Organization & Best Practices
+
+### State Management
+- **Zustand Store**: All game state is centralized in `gameStore.ts`
+- **Immer Middleware**: Enables direct state mutations for cleaner code
+- **Action Methods**: All state changes go through store methods
+
+### Performance Optimizations
+- **Canvas Rendering**: Uses refs for animations to avoid React re-renders
+- **Memoized Drawing**: Draw function only recalculates when necessary
+- **Animation Loop**: Separate requestAnimationFrame loop for smooth animations
+
+### Code Documentation
+- All major functions and components have comprehensive JSDoc comments
+- Complex algorithms (Bresenham's line, BFS pathfinding) are well-documented
+- Type definitions include descriptions of their purpose
+
+### Recent Improvements
+- **Rendering Performance**: Fixed flashing by optimizing canvas dependency tracking
+- **UI/UX**: More compact layout, better dice roll positioning
+- **Game Flow**: Added enemy AI to prevent game freezing
+- **Code Quality**: Added extensive comments throughout codebase
+
 ## Development Guidelines
 
 When implementing new features:
@@ -126,3 +156,5 @@ When implementing new features:
 3. Add new types to `src/game/types/index.ts`
 4. Keep game constants in `src/game/constants/index.ts` for easy balancing
 5. Use the existing Zustand patterns for state updates
+6. Add JSDoc comments for new functions and complex logic
+7. Test edge cases (enemy turns, unit death, ability targeting)

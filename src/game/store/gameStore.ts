@@ -6,20 +6,37 @@ import { nanoid } from 'nanoid'
 import { calculateDistance, getLineOfSight, getMovementRange, getCoverPenalty, getAdjacentPositions } from '../utils/gridUtils'
 import { createUnit } from '../utils/unitUtils'
 
+/**
+ * Main game store interface combining game state with action methods
+ * Uses Zustand for state management with Immer for immutable updates
+ */
 interface GameStore extends GameState {
+  // Game lifecycle actions
   initializeGame: () => void
+  restartGame: () => void
+  
+  // Unit and action selection
   selectUnit: (unitId: string) => void
   selectAction: (action: ActionType) => void
+  
+  // Combat actions
   moveUnit: (unitId: string, position: Position) => void
   attackUnit: (attackerId: string, targetId: string) => void
   useAbility: (userId: string, targetId?: string, targetPos?: Position) => void
+  
+  // Turn management
   endTurn: () => void
-  hoverCell: (position: Position | null) => void
-  restartGame: () => void
-  clearLastCombat: () => void
   processEnemyTurn: () => void
+  
+  // UI interactions
+  hoverCell: (position: Position | null) => void
+  clearLastCombat: () => void
 }
 
+/**
+ * Creates the game grid from the storage bay layout
+ * Converts ASCII map characters to cell types
+ */
 const initializeGrid = (): Cell[][] => {
   const grid: Cell[][] = []
   
@@ -29,9 +46,10 @@ const initializeGrid = (): Cell[][] => {
       const char = STORAGE_BAY_LAYOUT[y][x]
       let type: CellType = 'floor'
       
-      if (char === '#') type = 'wall'
-      else if (char === 'C') type = 'crate'
-      else if (char === 'D') type = 'door'
+      // Map ASCII characters to cell types
+      if (char === '#') type = 'wall'      // Solid walls (block movement and LOS)
+      else if (char === 'C') type = 'crate' // Crates (provide cover, difficult terrain)
+      else if (char === 'D') type = 'door'  // Doors (currently cosmetic)
       
       row.push({
         type,
@@ -44,25 +62,29 @@ const initializeGrid = (): Cell[][] => {
   return grid
 }
 
+/**
+ * Creates initial unit setup for the game
+ * Places 4 dwarf classes and enemies based on layout
+ */
 const initializeUnits = (): Unit[] => {
   const units: Unit[] = []
   
-  // Create dwarf units
-  units.push(createUnit('dwarf', 'ironclad', { x: 1, y: 4 }))
-  units.push(createUnit('dwarf', 'delver', { x: 2, y: 4 }))
-  units.push(createUnit('dwarf', 'brewmaster', { x: 1, y: 5 }))
-  units.push(createUnit('dwarf', 'engineer', { x: 2, y: 5 }))
+  // Create dwarf units at starting positions
+  units.push(createUnit('dwarf', 'ironclad', { x: 1, y: 4 }))    // Tank class
+  units.push(createUnit('dwarf', 'delver', { x: 2, y: 4 }))      // Scout class
+  units.push(createUnit('dwarf', 'brewmaster', { x: 1, y: 5 }))  // Healer class
+  units.push(createUnit('dwarf', 'engineer', { x: 2, y: 5 }))    // Support class
   
-  // Create enemy units based on layout
+  // Create enemy units based on layout ASCII characters
   for (let y = 0; y < GRID_SIZE; y++) {
     for (let x = 0; x < GRID_SIZE; x++) {
       const char = STORAGE_BAY_LAYOUT[y][x]
       if (char === 'G') {
-        units.push(createUnit('enemy', 'goblinGrunt', { x, y }))
+        units.push(createUnit('enemy', 'goblinGrunt', { x, y }))      // Melee enemy
       } else if (char === 'g') {
-        units.push(createUnit('enemy', 'goblinScavenger', { x, y }))
+        units.push(createUnit('enemy', 'goblinScavenger', { x, y }))  // Ranged enemy
       } else if (char === 'W') {
-        units.push(createUnit('enemy', 'voidWarg', { x, y }))
+        units.push(createUnit('enemy', 'voidWarg', { x, y }))         // Fast melee enemy
       }
     }
   }
@@ -70,8 +92,13 @@ const initializeUnits = (): Unit[] => {
   return units
 }
 
+/**
+ * Main game store using Zustand with Immer middleware
+ * Manages all game state and provides actions for game logic
+ */
 export const useGameStore = create<GameStore>()(
   immer((set, get) => ({
+    // Initial state values
     units: [],
     grid: [],
     currentUnitId: null,
@@ -85,12 +112,17 @@ export const useGameStore = create<GameStore>()(
     lastCombat: undefined,
     revealedCells: [],
     
+    /**
+     * Initializes a new game with grid, units, and turn order
+     * Called on game start or restart
+     */
     initializeGame: () => {
       set((state) => {
+        // Setup game board and place units
         state.grid = initializeGrid()
         state.units = initializeUnits()
         
-        // Calculate turn order based on initiative (d20 + speed/5)
+        // Roll initiative for turn order (d20 + speed bonus)
         const turnOrder = state.units
           .map(unit => ({
             id: unit.id,
@@ -99,12 +131,13 @@ export const useGameStore = create<GameStore>()(
           .sort((a, b) => b.initiative - a.initiative)
           .map(item => item.id)
         
+        // Initialize game state
         state.turnOrder = turnOrder
         state.currentUnitId = turnOrder[0]
         state.round = 1
         state.phase = 'combat'
         
-        // Set first unit as active
+        // Activate first unit in turn order
         const firstUnit = state.units.find(u => u.id === turnOrder[0])
         if (firstUnit) {
           firstUnit.isActive = true
@@ -118,12 +151,19 @@ export const useGameStore = create<GameStore>()(
       })
     },
     
+    /**
+     * Sets the currently selected unit
+     */
     selectUnit: (unitId: string) => {
       set((state) => {
         state.currentUnitId = unitId
       })
     },
     
+    /**
+     * Handles action selection and calculates valid targets/moves
+     * Updates validMoves or validTargets based on action type
+     */
     selectAction: (action: ActionType) => {
       set((state) => {
         state.selectedAction = action
@@ -134,7 +174,7 @@ export const useGameStore = create<GameStore>()(
         if (!currentUnit || currentUnit.actionsRemaining <= 0) return
         
         if (action === 'move') {
-          // Calculate valid movement positions
+          // Calculate valid movement positions based on speed and terrain
           state.validMoves = getMovementRange(
             currentUnit.position,
             currentUnit.speed,
@@ -217,27 +257,36 @@ export const useGameStore = create<GameStore>()(
       })
     },
     
+    /**
+     * Moves a unit to a new position
+     * Consumes 1 action point, 2 for difficult terrain (crates)
+     */
     moveUnit: (unitId: string, position: Position) => {
       set((state) => {
         const unit = state.units.find(u => u.id === unitId)
         if (!unit || unit.actionsRemaining <= 0) return
         
-        // Check if move is valid
+        // Validate move is in allowed positions
         const isValidMove = state.validMoves.some(
           move => move.x === position.x && move.y === position.y
         )
         if (!isValidMove) return
         
-        // Move unit
+        // Execute move and consume action
         unit.position = position
         unit.actionsRemaining -= 1
         
-        // Clear selection
+        // Clear UI state
         state.selectedAction = null
         state.validMoves = []
       })
     },
     
+    /**
+     * Handles combat between units
+     * Rolls d20 + attack bonus vs target AC (modified by cover and status effects)
+     * Critical hits on natural 20 or beating AC by 10+
+     */
     attackUnit: (attackerId: string, targetId: string) => {
       set((state) => {
         const attacker = state.units.find(u => u.id === attackerId)
@@ -245,17 +294,17 @@ export const useGameStore = create<GameStore>()(
         
         if (!attacker || !target || attacker.actionsRemaining <= 0) return
         
-        // Calculate cover penalty
+        // Check for cover between attacker and target (-2 AC for crates, -4 for walls)
         const coverPenalty = getCoverPenalty(attacker.position, target.position, state.grid)
         
-        // Calculate effective AC (including status effects)
+        // Apply status effects to AC (e.g., Shield Wall buff)
         let effectiveAC = target.ac
         const shieldWall = target.statusEffects.find(e => e.type === 'shieldWall')
         if (shieldWall) {
           effectiveAC += shieldWall.value
         }
         
-        // Roll to hit
+        // Combat resolution: d20 + bonus - penalty vs AC
         const roll = Math.floor(Math.random() * 20) + 1
         const total = roll + attacker.attackBonus - coverPenalty
         const hit = total >= effectiveAC
@@ -302,21 +351,26 @@ export const useGameStore = create<GameStore>()(
       })
     },
     
+    /**
+     * Executes special abilities for each dwarf class
+     * Each ability has unique targeting and effects
+     */
     useAbility: (userId: string, targetId?: string, targetPos?: Position) => {
       set((state) => {
         const user = state.units.find(u => u.id === userId)
         if (!user) return
         
+        // Get ability cost based on class
         const abilityCost = DWARF_STATS[user.class as DwarfClass]?.abilityCost || 0
         if (user.actionsRemaining < abilityCost) return
         
-        // Handle abilities based on class
+        // Execute ability based on class type
         if (user.class === 'ironclad' && targetId) {
-          // Shield Wall - grant +2 AC to adjacent ally
+          // SHIELD WALL: Grants +2 AC to adjacent ally for 1 round
           const target = state.units.find(u => u.id === targetId)
           if (!target) return
           
-          // Add shield wall status effect
+          // Apply defensive buff
           target.statusEffects.push({
             type: 'shieldWall',
             value: 2,
@@ -324,15 +378,17 @@ export const useGameStore = create<GameStore>()(
           })
           
           user.actionsRemaining -= abilityCost
+          
         } else if (user.class === 'delver' && targetPos) {
-          // Ore Scanner - reveal 3x3 area
+          // ORE SCANNER: Reveals 3x3 area through walls (range 4)
+          // Useful for scouting enemies and planning tactics
           for (let dy = -1; dy <= 1; dy++) {
             for (let dx = -1; dx <= 1; dx++) {
               const x = targetPos.x + dx
               const y = targetPos.y + dy
               
               if (x >= 0 && x < GRID_SIZE && y >= 0 && y < GRID_SIZE) {
-                // Check if already revealed
+                // Add to revealed cells if not already visible
                 const alreadyRevealed = state.revealedCells.some(
                   cell => cell.x === x && cell.y === y
                 )
@@ -344,20 +400,24 @@ export const useGameStore = create<GameStore>()(
           }
           
           user.actionsRemaining -= abilityCost
+          
         } else if (user.class === 'brewmaster' && targetId) {
-          // Combat Brew - heal adjacent ally 2 HP
+          // COMBAT BREW: Heals adjacent ally for 2 HP
+          // Cannot overheal beyond max HP
           const target = state.units.find(u => u.id === targetId)
           if (!target) return
           
           target.hp = Math.min(target.maxHp, target.hp + 2)
           user.actionsRemaining -= abilityCost
+          
         } else if (user.class === 'engineer' && targetPos) {
-          // Deploy Turret - create turret unit
+          // DEPLOY TURRET: Creates autonomous turret unit
+          // Turret has 3 HP, 10 AC, +2 attack, 1 damage, range 4
           const turret = createUnit('turret', 'engineerTurret', targetPos)
           turret.ownerId = user.id
           state.units.push(turret)
           
-          // Add turret to turn order after the engineer
+          // Insert turret into turn order after engineer
           const engineerIndex = state.turnOrder.indexOf(user.id)
           state.turnOrder.splice(engineerIndex + 1, 0, turret.id)
           
@@ -370,20 +430,24 @@ export const useGameStore = create<GameStore>()(
       })
     },
     
+    /**
+     * Advances to the next unit's turn
+     * Handles round progression, status effect duration, and AI activation
+     */
     endTurn: () => {
       set((state) => {
         const currentIndex = state.turnOrder.indexOf(state.currentUnitId!)
         const nextIndex = (currentIndex + 1) % state.turnOrder.length
         
-        // If we've wrapped around, increment round
+        // Check if we've completed a full round
         if (nextIndex === 0) {
           state.round += 1
           
-          // Decrement status effect durations at the end of each round
+          // Update status effects at round end
           state.units.forEach(unit => {
             unit.statusEffects = unit.statusEffects
               .map(effect => ({ ...effect, duration: effect.duration - 1 }))
-              .filter(effect => effect.duration > 0)
+              .filter(effect => effect.duration > 0)  // Remove expired effects
           })
         }
         
@@ -393,7 +457,7 @@ export const useGameStore = create<GameStore>()(
           currentUnit.isActive = false
         }
         
-        // Find next alive unit
+        // Find next living unit (skip dead units)
         let attempts = 0
         let nextUnitId = state.turnOrder[nextIndex]
         let nextUnit = state.units.find(u => u.id === nextUnitId)
@@ -406,41 +470,55 @@ export const useGameStore = create<GameStore>()(
           attempts++
         }
         
-        // Activate next unit
+        // Activate next unit and refresh their actions
         if (nextUnit && nextUnit.hp > 0) {
           nextUnit.isActive = true
           nextUnit.actionsRemaining = ACTIONS_PER_TURN
           state.currentUnitId = nextUnit.id
           
-          // If it's an enemy turn, process AI after a short delay
+          // Trigger AI for enemy units
           if (nextUnit.type === 'enemy') {
             setTimeout(() => get().processEnemyTurn(), 500)
           }
         }
         
-        // Clear selections
+        // Reset UI state for new turn
         state.selectedAction = null
         state.validMoves = []
         state.validTargets = []
       })
     },
     
+    /**
+     * Updates the hovered cell for UI feedback
+     */
     hoverCell: (position: Position | null) => {
       set((state) => {
         state.hoveredCell = position
       })
     },
     
+    /**
+     * Resets the game to initial state
+     */
     restartGame: () => {
       get().initializeGame()
     },
     
+    /**
+     * Clears the last combat info (used after dice roll display)
+     */
     clearLastCombat: () => {
       set((state) => {
         state.lastCombat = undefined
       })
     },
     
+    /**
+     * Handles enemy AI behavior
+     * Simple AI: Find nearest dwarf, move closer, attack if in range
+     * Processes actions with delays for visual clarity
+     */
     processEnemyTurn: () => {
       const state = get()
       const currentUnit = state.units.find(u => u.id === state.currentUnitId)
@@ -449,11 +527,11 @@ export const useGameStore = create<GameStore>()(
         return
       }
       
-      // Simple AI: Move towards nearest dwarf and attack if in range
+      // Get all living dwarf units as potential targets
       const dwarves = state.units.filter(u => u.type === 'dwarf' && u.hp > 0)
       if (dwarves.length === 0) return
       
-      // Find nearest dwarf
+      // Find closest target using Chebyshev distance
       let nearestDwarf: Unit | null = null
       let shortestDistance = Infinity
       
@@ -467,9 +545,9 @@ export const useGameStore = create<GameStore>()(
       
       if (!nearestDwarf) return
       
-      // Process AI actions with delays for visibility
+      // Execute AI actions asynchronously with visual delays
       const processActions = async () => {
-        // Check if can attack first
+        // Priority 1: Attack if target is in range with line of sight
         const attackRange = currentUnit.rangeWeapon || 1
         if (shortestDistance <= attackRange && getLineOfSight(currentUnit.position, nearestDwarf.position, state.grid)) {
           // Attack the nearest dwarf

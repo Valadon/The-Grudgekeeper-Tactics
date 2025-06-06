@@ -6,15 +6,21 @@ import { GRID_SIZE, CELL_SIZE, UNIT_COLORS, UNIT_INITIALS } from '../constants'
 import { Position } from '../types'
 import { getLineOfSight, getCoverPenalty } from '../utils/gridUtils'
 
+/**
+ * Damage animation data structure for floating damage numbers
+ */
 type DamageAnimation = {
   id: string
-  x: number
-  y: number
+  x: number      // Pixel X position
+  y: number      // Pixel Y position
   damage: number
   critical: boolean
   startTime: number
 }
 
+/**
+ * Heal animation data structure (currently unused, prepared for future)
+ */
 type HealAnimation = {
   id: string
   x: number
@@ -23,6 +29,11 @@ type HealAnimation = {
   startTime: number
 }
 
+/**
+ * Main game board component
+ * Renders the tactical grid, units, and handles all game interactions
+ * Uses Canvas API for efficient rendering
+ */
 export default function GameBoard() {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const {
@@ -41,12 +52,15 @@ export default function GameBoard() {
     hoverCell
   } = useGameStore()
   
-  // Store animation refs to prevent state updates during animations
+  // Animation refs prevent React re-renders during animations
   const animationFrameRef = useRef<number>()
   const damageAnimationsRef = useRef<DamageAnimation[]>([])
   const healAnimationsRef = useRef<HealAnimation[]>([])
   
-  // Handle damage animations when combat occurs
+  /**
+   * Creates floating damage numbers when combat occurs
+   * Animations are stored in refs to avoid state updates
+   */
   useEffect(() => {
     if (lastCombat && lastCombat.hit && lastCombat.damage > 0) {
       const target = units.find(u => u.id === lastCombat.targetId)
@@ -61,7 +75,7 @@ export default function GameBoard() {
         }
         damageAnimationsRef.current = [...damageAnimationsRef.current, newAnimation]
         
-        // Remove animation after 1.5 seconds
+        // Auto-remove animation after duration
         setTimeout(() => {
           damageAnimationsRef.current = damageAnimationsRef.current.filter(a => a.id !== newAnimation.id)
         }, 1500)
@@ -69,38 +83,49 @@ export default function GameBoard() {
     }
   }, [lastCombat, units])
   
+  /**
+   * Handles click events on the game board
+   * Executes actions based on selected action type (move, strike, ability)
+   */
   const handleCanvasClick = (event: React.MouseEvent<HTMLCanvasElement>) => {
     const canvas = canvasRef.current
     if (!canvas) return
     
+    // Convert mouse coordinates to grid coordinates
     const rect = canvas.getBoundingClientRect()
     const x = Math.floor((event.clientX - rect.left) / CELL_SIZE)
     const y = Math.floor((event.clientY - rect.top) / CELL_SIZE)
     
+    // Validate grid bounds
     if (x < 0 || x >= GRID_SIZE || y < 0 || y >= GRID_SIZE) return
     
     const currentUnit = units.find(u => u.id === currentUnitId)
     if (!currentUnit) return
     
+    // Handle movement action
     if (selectedAction === 'move' && currentUnitId) {
       const isValidMove = validMoves.some(move => move.x === x && move.y === y)
       if (isValidMove) {
         moveUnit(currentUnitId, { x, y })
       }
-    } else if (selectedAction === 'strike' && currentUnitId) {
+    } 
+    // Handle attack action
+    else if (selectedAction === 'strike' && currentUnitId) {
       const targetUnit = units.find(u => u.position.x === x && u.position.y === y)
       if (targetUnit && validTargets.includes(targetUnit.id)) {
         attackUnit(currentUnitId, targetUnit.id)
       }
-    } else if (selectedAction === 'ability' && currentUnitId) {
+    } 
+    // Handle special abilities
+    else if (selectedAction === 'ability' && currentUnitId) {
       if (currentUnit && (currentUnit.class === 'delver' || currentUnit.class === 'engineer')) {
-        // Delver and Engineer target positions
+        // Position-targeted abilities (Ore Scanner, Deploy Turret)
         const isValidPosition = validMoves.some(pos => pos.x === x && pos.y === y)
         if (isValidPosition) {
           useAbility(currentUnitId, undefined, { x, y })
         }
       } else {
-        // Other abilities target units
+        // Unit-targeted abilities (Shield Wall, Combat Brew)
         const targetUnit = units.find(u => u.position.x === x && u.position.y === y)
         if (targetUnit && validTargets.includes(targetUnit.id)) {
           useAbility(currentUnitId, targetUnit.id)
@@ -109,6 +134,9 @@ export default function GameBoard() {
     }
   }
   
+  /**
+   * Tracks mouse position for hover effects and targeting preview
+   */
   const handleMouseMove = (event: React.MouseEvent<HTMLCanvasElement>) => {
     const canvas = canvasRef.current
     if (!canvas) return
@@ -131,7 +159,11 @@ export default function GameBoard() {
   // Extract current unit for reuse
   const currentUnit = units.find(u => u.id === currentUnitId)
   
-  // Memoized draw function to prevent unnecessary redraws
+  /**
+   * Main rendering function using Canvas API
+   * Draws layers in order: grid, highlights, units, UI elements, animations
+   * Memoized to prevent unnecessary redraws
+   */
   const drawGame = useCallback(() => {
     const canvas = canvasRef.current
     if (!canvas) return
@@ -139,11 +171,11 @@ export default function GameBoard() {
     const ctx = canvas.getContext('2d')
     if (!ctx) return
     
-    // Clear canvas
+    // Layer 1: Clear canvas with dark background
     ctx.fillStyle = '#111827'
     ctx.fillRect(0, 0, canvas.width, canvas.height)
     
-    // Draw grid
+    // Layer 2: Draw grid cells
     for (let y = 0; y < GRID_SIZE; y++) {
       for (let x = 0; x < GRID_SIZE; x++) {
         const cell = grid[y]?.[x]
@@ -152,15 +184,15 @@ export default function GameBoard() {
         const pixelX = x * CELL_SIZE
         const pixelY = y * CELL_SIZE
         
-        // Draw cell background
+        // Cell type determines color
         if (cell.type === 'wall') {
-          ctx.fillStyle = '#374151'
+          ctx.fillStyle = '#374151'  // Dark gray for walls
         } else if (cell.type === 'crate') {
-          ctx.fillStyle = '#4B5563'
+          ctx.fillStyle = '#4B5563'  // Medium gray for crates
         } else if (cell.type === 'door') {
-          ctx.fillStyle = '#6B7280'
+          ctx.fillStyle = '#6B7280'  // Light gray for doors
         } else {
-          ctx.fillStyle = '#1F2937'
+          ctx.fillStyle = '#1F2937'  // Floor color
         }
         ctx.fillRect(pixelX, pixelY, CELL_SIZE, CELL_SIZE)
         
