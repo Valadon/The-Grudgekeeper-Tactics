@@ -147,20 +147,24 @@ export const useGameStore = create<GameStore>()(
         if (firstUnit) {
           firstUnit.isActive = true
           firstUnit.actionsRemaining = ACTIONS_PER_TURN
-          
-          // Add initial log entry
-          get().addLogEntry({
-            type: 'system',
-            message: `Battle begins! ${getUnitDisplayName(firstUnit)}'s turn`,
-            details: `Actions: ${firstUnit.actionsRemaining}`
-          })
-          
-          // If first unit is an enemy, process AI
-          if (firstUnit.type === 'enemy') {
-            setTimeout(() => get().processEnemyTurn(), 500)
-          }
         }
       })
+      
+      // After state is set, add log entry and process AI if needed
+      const firstUnit = get().units.find(u => u.id === get().turnOrder[0])
+      if (firstUnit) {
+        // Add initial log entry
+        get().addLogEntry({
+          type: 'system',
+          message: `Battle begins! ${getUnitDisplayName(firstUnit)}'s turn`,
+          details: `Actions: ${firstUnit.actionsRemaining}`
+        })
+        
+        // If first unit is an enemy, process AI
+        if (firstUnit.type === 'enemy') {
+          setTimeout(() => get().processEnemyTurn(), 500)
+        }
+      }
     },
     
     /**
@@ -274,29 +278,32 @@ export const useGameStore = create<GameStore>()(
      * Consumes 1 action point, 2 for difficult terrain (crates)
      */
     moveUnit: (unitId: string, position: Position) => {
+      const unit = get().units.find(u => u.id === unitId)
+      if (!unit || unit.actionsRemaining <= 0) return
+      
+      // Validate move is in allowed positions
+      const isValidMove = get().validMoves.some(
+        move => move.x === position.x && move.y === position.y
+      )
+      if (!isValidMove) return
+      
       set((state) => {
-        const unit = state.units.find(u => u.id === unitId)
-        if (!unit || unit.actionsRemaining <= 0) return
-        
-        // Validate move is in allowed positions
-        const isValidMove = state.validMoves.some(
-          move => move.x === position.x && move.y === position.y
-        )
-        if (!isValidMove) return
+        const stateUnit = state.units.find(u => u.id === unitId)
+        if (!stateUnit) return
         
         // Execute move and consume action
-        unit.position = position
-        unit.actionsRemaining -= 1
+        stateUnit.position = position
+        stateUnit.actionsRemaining -= 1
         
         // Clear UI state
         state.selectedAction = null
         state.validMoves = []
-        
-        // Log the move
-        get().addLogEntry({
-          type: 'move',
-          message: `${getUnitDisplayName(unit)} moved to (${position.x}, ${position.y})`
-        })
+      })
+      
+      // Log the move after state update
+      get().addLogEntry({
+        type: 'move',
+        message: `${getUnitDisplayName(unit)} moved to (${position.x}, ${position.y})`
       })
     },
     
@@ -306,82 +313,71 @@ export const useGameStore = create<GameStore>()(
      * Critical hits on natural 20 or beating AC by 10+
      */
     attackUnit: (attackerId: string, targetId: string) => {
+      // Get data before state update
+      const attacker = get().units.find(u => u.id === attackerId)
+      const target = get().units.find(u => u.id === targetId)
+      
+      if (!attacker || !target || attacker.actionsRemaining <= 0) return
+      
+      // Check for cover between attacker and target (-2 AC for crates, -4 for walls)
+      const coverPenalty = getCoverPenalty(attacker.position, target.position, get().grid)
+      
+      // Apply status effects to AC (e.g., Shield Wall buff)
+      let effectiveAC = target.ac
+      const shieldWall = target.statusEffects.find(e => e.type === 'shieldWall')
+      if (shieldWall) {
+        effectiveAC += shieldWall.value
+      }
+      
+      // Combat resolution: d20 + bonus - penalty vs AC
+      const roll = Math.floor(Math.random() * 20) + 1
+      const total = roll + attacker.attackBonus - coverPenalty
+      const hit = total >= effectiveAC
+      const critical = roll === 20 || total >= effectiveAC + 10
+      
+      // Store combat info for display
+      const combatInfo: CombatInfo = {
+        attackerId,
+        targetId,
+        roll,
+        bonus: attacker.attackBonus,
+        coverPenalty,
+        total,
+        targetAC: effectiveAC,
+        hit,
+        critical,
+        damage: 0
+      }
+      
+      if (hit) {
+        const damage = critical ? attacker.damage * 2 : attacker.damage
+        combatInfo.damage = damage
+      }
+      
+      // Prepare log data before state update
+      const attackerName = getUnitDisplayName(attacker)
+      const targetName = getUnitDisplayName(target)
+      let attackDetails = `d20(${roll}) + ${attacker.attackBonus}`
+      if (coverPenalty > 0) {
+        attackDetails += ` - ${coverPenalty} (cover)`
+      }
+      attackDetails += ` = ${total} vs AC ${effectiveAC}`
+      
+      // Update state
       set((state) => {
-        const attacker = state.units.find(u => u.id === attackerId)
-        const target = state.units.find(u => u.id === targetId)
+        const stateAttacker = state.units.find(u => u.id === attackerId)
+        const stateTarget = state.units.find(u => u.id === targetId)
         
-        if (!attacker || !target || attacker.actionsRemaining <= 0) return
-        
-        // Check for cover between attacker and target (-2 AC for crates, -4 for walls)
-        const coverPenalty = getCoverPenalty(attacker.position, target.position, state.grid)
-        
-        // Apply status effects to AC (e.g., Shield Wall buff)
-        let effectiveAC = target.ac
-        const shieldWall = target.statusEffects.find(e => e.type === 'shieldWall')
-        if (shieldWall) {
-          effectiveAC += shieldWall.value
-        }
-        
-        // Combat resolution: d20 + bonus - penalty vs AC
-        const roll = Math.floor(Math.random() * 20) + 1
-        const total = roll + attacker.attackBonus - coverPenalty
-        const hit = total >= effectiveAC
-        const critical = roll === 20 || total >= effectiveAC + 10
-        
-        // Store combat info for display
-        const combatInfo = {
-          attackerId,
-          targetId,
-          roll,
-          bonus: attacker.attackBonus,
-          coverPenalty,
-          total,
-          targetAC: effectiveAC,
-          hit,
-          critical,
-          damage: 0
-        }
+        if (!stateAttacker || !stateTarget) return
         
         if (hit) {
-          const damage = critical ? attacker.damage * 2 : attacker.damage
-          target.hp = Math.max(0, target.hp - damage)
-          combatInfo.damage = damage
+          stateTarget.hp = Math.max(0, stateTarget.hp - combatInfo.damage)
         }
         
         // Store last combat for display
         state.lastCombat = combatInfo
         
-        // Log the attack
-        const attackerName = getUnitDisplayName(attacker)
-        const targetName = getUnitDisplayName(target)
-        let attackDetails = `d20(${roll}) + ${attacker.attackBonus}`
-        if (coverPenalty > 0) {
-          attackDetails += ` - ${coverPenalty} (cover)`
-        }
-        attackDetails += ` = ${total} vs AC ${effectiveAC}`
-        
-        get().addLogEntry({
-          type: 'attack',
-          message: `${attackerName} attacks ${targetName}`,
-          details: attackDetails
-        })
-        
-        if (hit) {
-          const damageMsg = critical ? `CRITICAL HIT! ${combatInfo.damage} damage` : `Hit for ${combatInfo.damage} damage`
-          get().addLogEntry({
-            type: 'damage',
-            message: damageMsg,
-            details: target.hp > 0 ? `${targetName} now at ${target.hp}/${target.maxHp} HP` : `${targetName} defeated!`
-          })
-        } else {
-          get().addLogEntry({
-            type: 'attack',
-            message: 'Miss!',
-            details: roll === 1 ? 'Natural 1!' : undefined
-          })
-        }
-        
-        attacker.actionsRemaining -= 1
+        stateAttacker.actionsRemaining -= 1
         
         // Clear selection
         state.selectedAction = null
@@ -397,6 +393,29 @@ export const useGameStore = create<GameStore>()(
           state.phase = 'defeat'
         }
       })
+      
+      // Log the attack after state update
+      get().addLogEntry({
+        type: 'attack',
+        message: `${attackerName} attacks ${targetName}`,
+        details: attackDetails
+      })
+      
+      if (hit) {
+        const targetAfter = get().units.find(u => u.id === targetId)
+        const damageMsg = critical ? `CRITICAL HIT! ${combatInfo.damage} damage` : `Hit for ${combatInfo.damage} damage`
+        get().addLogEntry({
+          type: 'damage',
+          message: damageMsg,
+          details: targetAfter && targetAfter.hp > 0 ? `${targetName} now at ${targetAfter.hp}/${targetAfter.maxHp} HP` : `${targetName} defeated!`
+        })
+      } else {
+        get().addLogEntry({
+          type: 'attack',
+          message: 'Miss!',
+          details: roll === 1 ? 'Natural 1!' : undefined
+        })
+      }
     },
     
     /**
@@ -404,16 +423,25 @@ export const useGameStore = create<GameStore>()(
      * Each ability has unique targeting and effects
      */
     useAbility: (userId: string, targetId?: string, targetPos?: Position) => {
+      // Get data before state update
+      const user = get().units.find(u => u.id === userId)
+      if (!user) return
+      
+      // Get ability cost based on class
+      const abilityCost = user.type === 'dwarf' ? DWARF_STATS[user.class as DwarfClass]?.abilityCost || 0 : 0
+      if (user.actionsRemaining < abilityCost) return
+      
+      // Track ability usage for logging
+      let abilityUsed = false
+      let logEntry: Omit<CombatLogEntry, 'round'> | null = null
+      
+      // Update state
       set((state) => {
-        const user = state.units.find(u => u.id === userId)
-        if (!user) return
-        
-        // Get ability cost based on class
-        const abilityCost = user.type === 'dwarf' ? DWARF_STATS[user.class as DwarfClass]?.abilityCost || 0 : 0
-        if (user.actionsRemaining < abilityCost) return
+        const stateUser = state.units.find(u => u.id === userId)
+        if (!stateUser) return
         
         // Execute ability based on class type
-        if (user.class === 'ironclad' && targetId) {
+        if (stateUser.class === 'ironclad' && targetId) {
           // SHIELD WALL: Grants +2 AC to adjacent ally for 1 round
           const target = state.units.find(u => u.id === targetId)
           if (!target) return
@@ -425,15 +453,16 @@ export const useGameStore = create<GameStore>()(
             duration: 1
           })
           
-          user.actionsRemaining -= abilityCost
+          stateUser.actionsRemaining -= abilityCost
+          abilityUsed = true
           
-          get().addLogEntry({
+          logEntry = {
             type: 'ability',
-            message: `${getUnitDisplayName(user)} used Shield Wall on ${getUnitDisplayName(target)}`,
+            message: `${getUnitDisplayName(stateUser)} used Shield Wall on ${getUnitDisplayName(target)}`,
             details: `+2 AC for 1 round`
-          })
+          }
           
-        } else if (user.class === 'delver' && targetPos) {
+        } else if (stateUser.class === 'delver' && targetPos) {
           // ORE SCANNER: Reveals 3x3 area through walls (range 4)
           // Useful for scouting enemies and planning tactics
           for (let dy = -1; dy <= 1; dy++) {
@@ -453,15 +482,16 @@ export const useGameStore = create<GameStore>()(
             }
           }
           
-          user.actionsRemaining -= abilityCost
+          stateUser.actionsRemaining -= abilityCost
+          abilityUsed = true
           
-          get().addLogEntry({
+          logEntry = {
             type: 'ability',
-            message: `${getUnitDisplayName(user)} used Ore Scanner`,
+            message: `${getUnitDisplayName(stateUser)} used Ore Scanner`,
             details: `Revealed 3x3 area at (${targetPos.x}, ${targetPos.y})`
-          })
+          }
           
-        } else if (user.class === 'brewmaster' && targetId) {
+        } else if (stateUser.class === 'brewmaster' && targetId) {
           // COMBAT BREW: Heals adjacent ally for 2 HP
           // Cannot overheal beyond max HP
           const target = state.units.find(u => u.id === targetId)
@@ -469,38 +499,45 @@ export const useGameStore = create<GameStore>()(
           
           const healAmount = Math.min(2, target.maxHp - target.hp)
           target.hp = Math.min(target.maxHp, target.hp + 2)
-          user.actionsRemaining -= abilityCost
+          stateUser.actionsRemaining -= abilityCost
+          abilityUsed = true
           
-          get().addLogEntry({
+          logEntry = {
             type: 'heal',
-            message: `${getUnitDisplayName(user)} healed ${getUnitDisplayName(target)} for ${healAmount} HP`,
+            message: `${getUnitDisplayName(stateUser)} healed ${getUnitDisplayName(target)} for ${healAmount} HP`,
             details: `${getUnitDisplayName(target)} now at ${target.hp}/${target.maxHp} HP`
-          })
+          }
           
-        } else if (user.class === 'engineer' && targetPos) {
+        } else if (stateUser.class === 'engineer' && targetPos) {
           // DEPLOY TURRET: Creates autonomous turret unit
           // Turret has 3 HP, 10 AC, +2 attack, 1 damage, range 4
           const turret = createUnit('turret', 'engineerTurret', targetPos)
-          turret.ownerId = user.id
+          turret.ownerId = stateUser.id
           state.units.push(turret)
           
           // Insert turret into turn order after engineer
-          const engineerIndex = state.turnOrder.indexOf(user.id)
+          const engineerIndex = state.turnOrder.indexOf(stateUser.id)
           state.turnOrder.splice(engineerIndex + 1, 0, turret.id)
           
-          user.actionsRemaining -= abilityCost
+          stateUser.actionsRemaining -= abilityCost
+          abilityUsed = true
           
-          get().addLogEntry({
+          logEntry = {
             type: 'ability',
-            message: `${getUnitDisplayName(user)} deployed a turret`,
+            message: `${getUnitDisplayName(stateUser)} deployed a turret`,
             details: `Turret placed at (${targetPos.x}, ${targetPos.y})`
-          })
+          }
         }
         
         // Clear selection
         state.selectedAction = null
         state.validTargets = []
       })
+      
+      // Log ability usage after state update
+      if (abilityUsed && logEntry) {
+        get().addLogEntry(logEntry)
+      }
     },
     
     /**
@@ -548,17 +585,6 @@ export const useGameStore = create<GameStore>()(
           nextUnit.isActive = true
           nextUnit.actionsRemaining = ACTIONS_PER_TURN
           state.currentUnitId = nextUnit.id
-          
-          get().addLogEntry({
-            type: 'system',
-            message: `${getUnitDisplayName(nextUnit)}'s turn begins`,
-            details: `Actions: ${nextUnit.actionsRemaining}`
-          })
-          
-          // Trigger AI for enemy units
-          if (nextUnit.type === 'enemy') {
-            setTimeout(() => get().processEnemyTurn(), 500)
-          }
         }
         
         // Reset UI state for new turn
@@ -566,6 +592,21 @@ export const useGameStore = create<GameStore>()(
         state.validMoves = []
         state.validTargets = []
       })
+      
+      // Get the next unit info after state update and log
+      const nextUnit = get().units.find(u => u.id === get().currentUnitId)
+      if (nextUnit) {
+        get().addLogEntry({
+          type: 'system',
+          message: `${getUnitDisplayName(nextUnit)}'s turn begins`,
+          details: `Actions: ${nextUnit.actionsRemaining}`
+        })
+        
+        // Trigger AI for enemy units
+        if (nextUnit.type === 'enemy') {
+          setTimeout(() => get().processEnemyTurn(), 500)
+        }
+      }
     },
     
     /**
@@ -682,10 +723,11 @@ export const useGameStore = create<GameStore>()(
      * Adds an entry to the combat log with the current round number
      */
     addLogEntry: (entry: Omit<CombatLogEntry, 'round'>) => {
+      const currentRound = get().round;
       set((state) => {
         state.combatLog = [...state.combatLog, {
           ...entry,
-          round: state.round
+          round: currentRound
         }]
       })
     }
