@@ -76,14 +76,18 @@ export default function ActionBar() {
     <div className="bg-gray-800 p-3 rounded-lg shadow-lg">
       <div className="flex items-center justify-between mb-3">
         <h3 className="text-base font-semibold">Actions</h3>
-        <div className="flex items-center gap-2">
-          <span className="text-sm">Actions:</span>
+        <div className="flex items-center gap-3">
+          <span className="text-lg font-bold text-blue-400">
+            {currentUnit.actionsRemaining} / 3
+          </span>
           <div className="flex gap-1">
             {[...Array(3)].map((_, i) => (
               <div
                 key={i}
-                className={`w-3 h-3 rounded-full ${
-                  i < currentUnit.actionsRemaining ? 'bg-blue-500' : 'bg-gray-600'
+                className={`w-5 h-5 rounded-full border-2 ${
+                  i < currentUnit.actionsRemaining 
+                    ? 'bg-blue-500 border-blue-400' 
+                    : 'bg-gray-700 border-gray-600'
                 }`}
               />
             ))}

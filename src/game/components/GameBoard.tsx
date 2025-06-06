@@ -6,28 +6,7 @@ import { GRID_SIZE, CELL_SIZE, UNIT_COLORS, UNIT_INITIALS } from '../constants'
 import { Position } from '../types'
 import { getLineOfSight, getCoverPenalty } from '../utils/gridUtils'
 
-/**
- * Damage animation data structure for floating damage numbers
- */
-type DamageAnimation = {
-  id: string
-  x: number      // Pixel X position
-  y: number      // Pixel Y position
-  damage: number
-  critical: boolean
-  startTime: number
-}
-
-/**
- * Heal animation data structure (currently unused, prepared for future)
- */
-type HealAnimation = {
-  id: string
-  x: number
-  y: number
-  amount: number
-  startTime: number
-}
+// Animation types removed - now using combat log for all combat feedback
 
 /**
  * Main game board component
@@ -52,36 +31,9 @@ export default function GameBoard() {
     hoverCell
   } = useGameStore()
   
-  // Animation refs prevent React re-renders during animations
-  const animationFrameRef = useRef<number | undefined>(undefined)
-  const damageAnimationsRef = useRef<DamageAnimation[]>([])
-  const healAnimationsRef = useRef<HealAnimation[]>([])
+  // Animation refs removed - now using combat log
   
-  /**
-   * Creates floating damage numbers when combat occurs
-   * Animations are stored in refs to avoid state updates
-   */
-  useEffect(() => {
-    if (lastCombat && lastCombat.hit && lastCombat.damage > 0) {
-      const target = units.find(u => u.id === lastCombat.targetId)
-      if (target) {
-        const newAnimation: DamageAnimation = {
-          id: Math.random().toString(36),
-          x: target.position.x * CELL_SIZE + CELL_SIZE / 2,
-          y: target.position.y * CELL_SIZE,
-          damage: lastCombat.damage,
-          critical: lastCombat.critical,
-          startTime: Date.now()
-        }
-        damageAnimationsRef.current = [...damageAnimationsRef.current, newAnimation]
-        
-        // Auto-remove animation after duration
-        setTimeout(() => {
-          damageAnimationsRef.current = damageAnimationsRef.current.filter(a => a.id !== newAnimation.id)
-        }, 1500)
-      }
-    }
-  }, [lastCombat, units])
+  // Damage animations removed - now using combat log instead
   
   /**
    * Handles click events on the game board
@@ -366,46 +318,7 @@ export default function GameBoard() {
       ctx.fillRect(barX, barY, barWidth * hpPercent, barHeight)
     })
     
-    // Draw damage animations from ref
-    damageAnimationsRef.current.forEach(animation => {
-      const elapsed = Date.now() - animation.startTime
-      const progress = Math.min(elapsed / 1500, 1)
-      
-      // Float up and fade out
-      const offsetY = -30 * progress
-      const opacity = 1 - progress
-      
-      ctx.save()
-      ctx.globalAlpha = opacity
-      
-      // Background for better visibility
-      ctx.fillStyle = 'rgba(0, 0, 0, 0.8)'
-      ctx.fillRect(
-        animation.x - 30,
-        animation.y + offsetY - 5,
-        60,
-        30
-      )
-      
-      // Damage text
-      ctx.fillStyle = animation.critical ? '#FBBF24' : '#FFFFFF'
-      ctx.font = `bold ${animation.critical ? '28px' : '24px'} monospace`
-      ctx.textAlign = 'center'
-      ctx.textBaseline = 'middle'
-      ctx.fillText(
-        `-${animation.damage}`,
-        animation.x,
-        animation.y + offsetY + 10
-      )
-      
-      if (animation.critical) {
-        ctx.fillStyle = '#FBBF24'
-        ctx.font = 'bold 12px monospace'
-        ctx.fillText('CRIT!', animation.x, animation.y + offsetY - 10)
-      }
-      
-      ctx.restore()
-    })
+    // Damage animations removed - now displayed in combat log
   }, [grid, units, currentUnitId, selectedAction, validMoves, validTargets, hoveredCell, revealedCells, currentUnit])
   
   // Main render effect - only redraws when game state changes
@@ -413,30 +326,7 @@ export default function GameBoard() {
     drawGame()
   }, [drawGame])
   
-  // Animation loop for damage numbers only
-  useEffect(() => {
-    let lastTime = 0
-    
-    const animate = (timestamp: number) => {
-      // Only redraw if we have animations
-      if (damageAnimationsRef.current.length > 0 || healAnimationsRef.current.length > 0) {
-        // Throttle to 30 FPS
-        if (timestamp - lastTime > 33) {
-          drawGame()
-          lastTime = timestamp
-        }
-      }
-      animationFrameRef.current = requestAnimationFrame(animate)
-    }
-    
-    animationFrameRef.current = requestAnimationFrame(animate)
-    
-    return () => {
-      if (animationFrameRef.current) {
-        cancelAnimationFrame(animationFrameRef.current)
-      }
-    }
-  }, [drawGame])
+  // Animation loop removed - no longer needed without damage animations
   
   return (
     <div className="bg-gray-800 p-2 lg:p-3 rounded-lg shadow-lg">

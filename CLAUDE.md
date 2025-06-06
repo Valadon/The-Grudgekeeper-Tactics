@@ -96,6 +96,10 @@ GamePage
 - Enemy AI behavior: moves toward nearest dwarf and attacks when in range
 - Fixed cover system bug: removed incorrect "adjacent cover" calculation that was giving cover bonuses even with clear line of sight
 - Cover now only applies when obstacles (crates) are directly in the line of fire between attacker and target
+- Added comprehensive combat log that shows all actions, rolls, and damage
+- Improved action counter display (now shows X/3 format with larger visual indicators)
+- Removed floating damage numbers in favor of combat log
+- Combat log shows detailed attack information: roll + bonus - penalty = total vs AC
 
 **Phase 3 - Not Yet Implemented:**
 - Smooth movement animations (sliding between squares)

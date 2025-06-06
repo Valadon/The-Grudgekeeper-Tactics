@@ -1,10 +1,10 @@
 import { create } from 'zustand'
 import { immer } from 'zustand/middleware/immer'
-import { GameState, Unit, Position, ActionType, Cell, CellType, CombatInfo, DwarfClass } from '../types'
+import { GameState, Unit, Position, ActionType, Cell, CellType, CombatInfo, DwarfClass, CombatLogEntry } from '../types'
 import { GRID_SIZE, STORAGE_BAY_LAYOUT, ACTIONS_PER_TURN, DWARF_STATS } from '../constants'
 import { nanoid } from 'nanoid'
 import { calculateDistance, getLineOfSight, getMovementRange, getCoverPenalty, getAdjacentPositions } from '../utils/gridUtils'
-import { createUnit } from '../utils/unitUtils'
+import { createUnit, getUnitDisplayName } from '../utils/unitUtils'
 
 /**
  * Main game store interface combining game state with action methods
@@ -31,6 +31,9 @@ interface GameStore extends GameState {
   // UI interactions
   hoverCell: (position: Position | null) => void
   clearLastCombat: () => void
+  
+  // Combat log
+  addLogEntry: (entry: Omit<CombatLogEntry, 'round'>) => void
 }
 
 /**
@@ -111,6 +114,7 @@ export const useGameStore = create<GameStore>()(
     validTargets: [],
     lastCombat: undefined,
     revealedCells: [],
+    combatLog: [],
     
     /**
      * Initializes a new game with grid, units, and turn order
@@ -136,12 +140,20 @@ export const useGameStore = create<GameStore>()(
         state.currentUnitId = turnOrder[0]
         state.round = 1
         state.phase = 'combat'
+        state.combatLog = []
         
         // Activate first unit in turn order
         const firstUnit = state.units.find(u => u.id === turnOrder[0])
         if (firstUnit) {
           firstUnit.isActive = true
           firstUnit.actionsRemaining = ACTIONS_PER_TURN
+          
+          // Add initial log entry
+          get().addLogEntry({
+            type: 'system',
+            message: `Battle begins! ${getUnitDisplayName(firstUnit)}'s turn`,
+            details: `Actions: ${firstUnit.actionsRemaining}`
+          })
           
           // If first unit is an enemy, process AI
           if (firstUnit.type === 'enemy') {
@@ -279,6 +291,12 @@ export const useGameStore = create<GameStore>()(
         // Clear UI state
         state.selectedAction = null
         state.validMoves = []
+        
+        // Log the move
+        get().addLogEntry({
+          type: 'move',
+          message: `${getUnitDisplayName(unit)} moved to (${position.x}, ${position.y})`
+        })
       })
     },
     
@@ -333,6 +351,36 @@ export const useGameStore = create<GameStore>()(
         // Store last combat for display
         state.lastCombat = combatInfo
         
+        // Log the attack
+        const attackerName = getUnitDisplayName(attacker)
+        const targetName = getUnitDisplayName(target)
+        let attackDetails = `d20(${roll}) + ${attacker.attackBonus}`
+        if (coverPenalty > 0) {
+          attackDetails += ` - ${coverPenalty} (cover)`
+        }
+        attackDetails += ` = ${total} vs AC ${effectiveAC}`
+        
+        get().addLogEntry({
+          type: 'attack',
+          message: `${attackerName} attacks ${targetName}`,
+          details: attackDetails
+        })
+        
+        if (hit) {
+          const damageMsg = critical ? `CRITICAL HIT! ${combatInfo.damage} damage` : `Hit for ${combatInfo.damage} damage`
+          get().addLogEntry({
+            type: 'damage',
+            message: damageMsg,
+            details: target.hp > 0 ? `${targetName} now at ${target.hp}/${target.maxHp} HP` : `${targetName} defeated!`
+          })
+        } else {
+          get().addLogEntry({
+            type: 'attack',
+            message: 'Miss!',
+            details: roll === 1 ? 'Natural 1!' : undefined
+          })
+        }
+        
         attacker.actionsRemaining -= 1
         
         // Clear selection
@@ -379,6 +427,12 @@ export const useGameStore = create<GameStore>()(
           
           user.actionsRemaining -= abilityCost
           
+          get().addLogEntry({
+            type: 'ability',
+            message: `${getUnitDisplayName(user)} used Shield Wall on ${getUnitDisplayName(target)}`,
+            details: `+2 AC for 1 round`
+          })
+          
         } else if (user.class === 'delver' && targetPos) {
           // ORE SCANNER: Reveals 3x3 area through walls (range 4)
           // Useful for scouting enemies and planning tactics
@@ -401,14 +455,27 @@ export const useGameStore = create<GameStore>()(
           
           user.actionsRemaining -= abilityCost
           
+          get().addLogEntry({
+            type: 'ability',
+            message: `${getUnitDisplayName(user)} used Ore Scanner`,
+            details: `Revealed 3x3 area at (${targetPos.x}, ${targetPos.y})`
+          })
+          
         } else if (user.class === 'brewmaster' && targetId) {
           // COMBAT BREW: Heals adjacent ally for 2 HP
           // Cannot overheal beyond max HP
           const target = state.units.find(u => u.id === targetId)
           if (!target) return
           
+          const healAmount = Math.min(2, target.maxHp - target.hp)
           target.hp = Math.min(target.maxHp, target.hp + 2)
           user.actionsRemaining -= abilityCost
+          
+          get().addLogEntry({
+            type: 'heal',
+            message: `${getUnitDisplayName(user)} healed ${getUnitDisplayName(target)} for ${healAmount} HP`,
+            details: `${getUnitDisplayName(target)} now at ${target.hp}/${target.maxHp} HP`
+          })
           
         } else if (user.class === 'engineer' && targetPos) {
           // DEPLOY TURRET: Creates autonomous turret unit
@@ -422,6 +489,12 @@ export const useGameStore = create<GameStore>()(
           state.turnOrder.splice(engineerIndex + 1, 0, turret.id)
           
           user.actionsRemaining -= abilityCost
+          
+          get().addLogEntry({
+            type: 'ability',
+            message: `${getUnitDisplayName(user)} deployed a turret`,
+            details: `Turret placed at (${targetPos.x}, ${targetPos.y})`
+          })
         }
         
         // Clear selection
@@ -475,6 +548,12 @@ export const useGameStore = create<GameStore>()(
           nextUnit.isActive = true
           nextUnit.actionsRemaining = ACTIONS_PER_TURN
           state.currentUnitId = nextUnit.id
+          
+          get().addLogEntry({
+            type: 'system',
+            message: `${getUnitDisplayName(nextUnit)}'s turn begins`,
+            details: `Actions: ${nextUnit.actionsRemaining}`
+          })
           
           // Trigger AI for enemy units
           if (nextUnit.type === 'enemy') {
@@ -597,6 +676,18 @@ export const useGameStore = create<GameStore>()(
       
       // Start processing with a small delay
       setTimeout(() => processActions(), 500)
+    },
+    
+    /**
+     * Adds an entry to the combat log with the current round number
+     */
+    addLogEntry: (entry: Omit<CombatLogEntry, 'round'>) => {
+      set((state) => {
+        state.combatLog = [...state.combatLog, {
+          ...entry,
+          round: state.round
+        }]
+      })
     }
   }))
 )

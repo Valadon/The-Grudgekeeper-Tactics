@@ -53,6 +53,13 @@ export type CombatInfo = {
   damage: number
 }
 
+export type CombatLogEntry = {
+  round: number
+  type: 'attack' | 'damage' | 'move' | 'ability' | 'heal' | 'system'
+  message: string
+  details?: string
+}
+
 export type GameState = {
   units: Unit[]
   grid: Cell[][]
@@ -66,6 +73,7 @@ export type GameState = {
   validTargets: string[]
   lastCombat?: CombatInfo
   revealedCells: Position[] // For Ore Scanner
+  combatLog: CombatLogEntry[]
 }
 
 export type ActionType = 'move' | 'strike' | 'aim' | 'defend' | 'ability' | 'interact'
