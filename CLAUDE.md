@@ -1,0 +1,109 @@
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
+## Commands
+
+### Development
+```bash
+npm run dev      # Start Next.js development server (http://localhost:3000)
+npm run build    # Build for production
+npm run start    # Start production server
+npm run lint     # Run Next.js linting
+```
+
+## Architecture Overview
+
+This is a tactical combat prototype for The Grudgekeeper, built with Next.js and TypeScript. The game implements a turn-based tactics system similar to Final Fantasy Tactics.
+
+### Key Technologies
+- **Next.js 15.3.3** with App Router
+- **TypeScript** with strict mode
+- **Zustand** for game state management (with Immer middleware)
+- **Tailwind CSS** for styling
+- **Canvas API** for game board rendering
+
+### Project Structure
+```
+src/
+├── app/                    # Next.js pages
+│   └── game/page.tsx      # Main game page
+├── game/                  # Core game logic
+│   ├── components/        # React components (GameBoard, ActionBar, etc.)
+│   ├── constants/         # Game configuration (stats, layout)
+│   ├── store/            # Zustand store with game state
+│   ├── types/            # TypeScript type definitions
+│   └── utils/            # Helper functions (grid, unit utilities)
+└── styles/               # Global CSS
+```
+
+### Game State Architecture
+
+The game uses a single Zustand store (`gameStore.ts`) that manages:
+- **Units**: Array of all units (dwarves and enemies) with positions, stats, and states
+- **Grid**: 8x8 grid with cell types (floor, wall, crate, door)
+- **Turn Management**: Current unit, turn order, round tracking
+- **Action System**: Selected action, valid moves/targets
+- **Game Phase**: combat, victory, or defeat
+
+Key state management patterns:
+- Immer for immutable updates
+- Computed values for valid moves/targets
+- Action methods that modify state (moveUnit, attackUnit, endTurn)
+
+### Component Hierarchy
+```
+GamePage
+├── GameBoard (Canvas rendering of grid and units)
+├── ActionBar (Player action buttons)
+├── UnitStatsPanel (Current unit information)
+├── TurnOrderPanel (Initiative order display)
+└── VictoryScreen (End game state)
+```
+
+### Implementation Status
+
+**Implemented (Phase 1):**
+- 8x8 tactical grid with Canvas rendering
+- Unit system with 4 dwarf classes and 3 enemy types
+- Turn-based movement with range visualization
+- Basic combat (attack rolls, damage)
+- Action points system (3 per turn)
+- Victory/defeat conditions
+
+**Not Yet Implemented:**
+- Special abilities for each class
+- AI for enemy units
+- Line of sight calculations
+- Cover system
+- Sound effects
+- Multiple encounters
+- Dice roll animations
+- Combat log
+
+## Important Implementation Details
+
+### Grid System
+- Grid coordinates use (x, y) with (0, 0) at top-left
+- Cell size is 64x64 pixels
+- Movement uses Chebyshev distance (diagonals cost 1)
+- Crates are difficult terrain (cost 2 movement)
+
+### Combat Mechanics
+- Attack roll: d20 + attackBonus vs target AC
+- Critical hit on natural 20 or beating AC by 10+
+- All damage values are fixed (no damage rolls)
+
+### Turn Order
+- Initiative: d20 + (speed / 5)
+- Units act in descending initiative order
+- Rounds increment when turn order wraps
+
+## Development Guidelines
+
+When implementing new features:
+1. Check `Project Documents/tactical-prototype-guide.md` for the implementation roadmap
+2. Refer to `Project Documents/grudgekeeper-tactical-playtest.md` for game rules
+3. Add new types to `src/game/types/index.ts`
+4. Keep game constants in `src/game/constants/index.ts` for easy balancing
+5. Use the existing Zustand patterns for state updates
