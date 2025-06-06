@@ -156,8 +156,7 @@ export const useGameStore = create<GameStore>()(
         // Add initial log entry
         get().addLogEntry({
           type: 'system',
-          message: `Battle begins! ${getUnitDisplayName(firstUnit)}'s turn`,
-          details: `Actions: ${firstUnit.actionsRemaining}`
+          message: `Battle begins!`
         })
         
         // If first unit is an enemy, process AI
@@ -394,26 +393,21 @@ export const useGameStore = create<GameStore>()(
         }
       })
       
-      // Log the attack after state update
-      get().addLogEntry({
-        type: 'attack',
-        message: `${attackerName} attacks ${targetName}`,
-        details: attackDetails
-      })
-      
+      // Log the attack result after state update
       if (hit) {
         const targetAfter = get().units.find(u => u.id === targetId)
-        const damageMsg = critical ? `CRITICAL HIT! ${combatInfo.damage} damage` : `Hit for ${combatInfo.damage} damage`
+        const damageMsg = critical ? `${attackerName} CRITS ${targetName} for ${combatInfo.damage} damage!` : `${attackerName} hits ${targetName} for ${combatInfo.damage} damage`
         get().addLogEntry({
           type: 'damage',
           message: damageMsg,
-          details: targetAfter && targetAfter.hp > 0 ? `${targetName} now at ${targetAfter.hp}/${targetAfter.maxHp} HP` : `${targetName} defeated!`
+          details: `${attackDetails}${targetAfter && targetAfter.hp <= 0 ? ' - DEFEATED!' : ''}`
         })
       } else {
+        const missMsg = roll === 1 ? `${attackerName} misses ${targetName} (Natural 1!)` : `${attackerName} misses ${targetName}`
         get().addLogEntry({
-          type: 'attack',
-          message: 'Miss!',
-          details: roll === 1 ? 'Natural 1!' : undefined
+          type: 'miss',
+          message: missMsg,
+          details: attackDetails
         })
       }
     },
@@ -593,19 +587,10 @@ export const useGameStore = create<GameStore>()(
         state.validTargets = []
       })
       
-      // Get the next unit info after state update and log
+      // Get the next unit info after state update and trigger AI if needed
       const nextUnit = get().units.find(u => u.id === get().currentUnitId)
-      if (nextUnit) {
-        get().addLogEntry({
-          type: 'system',
-          message: `${getUnitDisplayName(nextUnit)}'s turn begins`,
-          details: `Actions: ${nextUnit.actionsRemaining}`
-        })
-        
-        // Trigger AI for enemy units
-        if (nextUnit.type === 'enemy') {
-          setTimeout(() => get().processEnemyTurn(), 500)
-        }
+      if (nextUnit && nextUnit.type === 'enemy') {
+        setTimeout(() => get().processEnemyTurn(), 500)
       }
     },
     

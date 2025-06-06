@@ -25,25 +25,36 @@ export default function CombatLog() {
         {combatLog.length === 0 && (
           <div className="text-gray-500 italic">Battle begins...</div>
         )}
-        {combatLog.map((entry, index) => (
-          <div 
-            key={index} 
-            className={`p-2 rounded ${
-              entry.type === 'attack' ? 'bg-gray-700' :
-              entry.type === 'damage' ? 'bg-red-900/30' :
-              entry.type === 'heal' ? 'bg-green-900/30' :
-              entry.type === 'ability' ? 'bg-blue-900/30' :
-              entry.type === 'move' ? 'bg-gray-700/50' :
-              'bg-gray-700/30'
-            }`}
-          >
-            <div className="text-gray-400 text-xs">Round {entry.round}</div>
-            <div className="text-white">{entry.message}</div>
-            {entry.details && (
-              <div className="text-gray-400 text-xs mt-1">{entry.details}</div>
-            )}
-          </div>
-        ))}
+{combatLog.map((entry, index) => {
+          const prevEntry = index > 0 ? combatLog[index - 1] : null
+          const showRound = !prevEntry || prevEntry.round !== entry.round
+          
+          return (
+            <div key={index}>
+              {showRound && (
+                <div className="text-yellow-400 text-sm font-bold mt-2 mb-1 border-b border-gray-600 pb-1">
+                  Round {entry.round}
+                </div>
+              )}
+              <div 
+                className={`px-2 py-1 mb-1 text-sm ${
+                  entry.type === 'move' ? 'text-blue-300' :
+                  entry.type === 'damage' ? 'text-red-400 font-semibold' :
+                  entry.type === 'miss' ? 'text-gray-400' :
+                  entry.type === 'heal' ? 'text-green-400' :
+                  entry.type === 'ability' ? 'text-purple-300' :
+                  entry.type === 'system' ? 'text-yellow-300 italic' :
+                  'text-white'
+                }`}
+              >
+                <div>{entry.message}</div>
+                {entry.details && entry.type !== 'system' && (
+                  <div className="text-xs text-gray-400 ml-2">{entry.details}</div>
+                )}
+              </div>
+            </div>
+          )
+        })}
       </div>
     </div>
   )

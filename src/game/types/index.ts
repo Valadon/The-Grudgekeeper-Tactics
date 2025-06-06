@@ -55,7 +55,7 @@ export type CombatInfo = {
 
 export type CombatLogEntry = {
   round: number
-  type: 'attack' | 'damage' | 'move' | 'ability' | 'heal' | 'system'
+  type: 'attack' | 'damage' | 'miss' | 'move' | 'ability' | 'heal' | 'system'
   message: string
   details?: string
 }
