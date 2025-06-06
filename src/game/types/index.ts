@@ -3,14 +3,21 @@ export type Position = {
   y: number
 }
 
-export type UnitType = 'dwarf' | 'enemy'
+export type UnitType = 'dwarf' | 'enemy' | 'turret'
 export type DwarfClass = 'ironclad' | 'delver' | 'brewmaster' | 'engineer'
 export type EnemyClass = 'goblinScavenger' | 'goblinGrunt' | 'voidWarg'
+export type TurretClass = 'engineerTurret'
+
+export type StatusEffect = {
+  type: 'shieldWall' | 'aimed' | 'defending'
+  value: number
+  duration: number // rounds remaining
+}
 
 export type Unit = {
   id: string
   type: UnitType
-  class: DwarfClass | EnemyClass
+  class: DwarfClass | EnemyClass | TurretClass
   position: Position
   hp: number
   maxHp: number
@@ -21,8 +28,8 @@ export type Unit = {
   rangeWeapon?: number
   actionsRemaining: number
   isActive: boolean
-  hasMoved: boolean
-  hasAttacked: boolean
+  statusEffects: StatusEffect[]
+  ownerId?: string // For turrets to track their creator
 }
 
 export type CellType = 'floor' | 'wall' | 'crate' | 'door'
@@ -31,6 +38,19 @@ export type Cell = {
   type: CellType
   position: Position
   occupied?: string // unit id
+}
+
+export type CombatInfo = {
+  attackerId: string
+  targetId: string
+  roll: number
+  bonus: number
+  coverPenalty: number
+  total: number
+  targetAC: number
+  hit: boolean
+  critical: boolean
+  damage: number
 }
 
 export type GameState = {
@@ -44,6 +64,8 @@ export type GameState = {
   hoveredCell: Position | null
   validMoves: Position[]
   validTargets: string[]
+  lastCombat?: CombatInfo
+  revealedCells: Position[] // For Ore Scanner
 }
 
 export type ActionType = 'move' | 'strike' | 'aim' | 'defend' | 'ability' | 'interact'

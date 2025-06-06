@@ -61,6 +61,24 @@ export default function UnitStatsPanel() {
             <span>{currentUnit.rangeWeapon} squares</span>
           </div>
         )}
+        
+        <div className="pt-3 mt-3 border-t border-gray-700">
+          <div className="flex justify-between items-center">
+            <span className="text-gray-400">Actions:</span>
+            <div className="flex gap-1">
+              {[...Array(3)].map((_, i) => (
+                <div
+                  key={i}
+                  className={`w-3 h-3 rounded-full ${
+                    i < currentUnit.actionsRemaining
+                      ? 'bg-blue-500'
+                      : 'bg-gray-600'
+                  }`}
+                />
+              ))}
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   )

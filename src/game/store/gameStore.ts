@@ -1,9 +1,9 @@
 import { create } from 'zustand'
 import { immer } from 'zustand/middleware/immer'
-import { GameState, Unit, Position, ActionType, Cell, CellType } from '../types'
-import { GRID_SIZE, STORAGE_BAY_LAYOUT, ACTIONS_PER_TURN } from '../constants'
+import { GameState, Unit, Position, ActionType, Cell, CellType, CombatInfo } from '../types'
+import { GRID_SIZE, STORAGE_BAY_LAYOUT, ACTIONS_PER_TURN, DWARF_STATS } from '../constants'
 import { nanoid } from 'nanoid'
-import { calculateDistance, getLineOfSight, getMovementRange } from '../utils/gridUtils'
+import { calculateDistance, getLineOfSight, getMovementRange, getCoverPenalty, getAdjacentPositions } from '../utils/gridUtils'
 import { createUnit } from '../utils/unitUtils'
 
 interface GameStore extends GameState {
@@ -12,6 +12,7 @@ interface GameStore extends GameState {
   selectAction: (action: ActionType) => void
   moveUnit: (unitId: string, position: Position) => void
   attackUnit: (attackerId: string, targetId: string) => void
+  useAbility: (userId: string, targetId?: string, targetPos?: Position) => void
   endTurn: () => void
   hoverCell: (position: Position | null) => void
   restartGame: () => void
@@ -79,6 +80,8 @@ export const useGameStore = create<GameStore>()(
     hoveredCell: null,
     validMoves: [],
     validTargets: [],
+    lastCombat: undefined,
+    revealedCells: [],
     
     initializeGame: () => {
       set((state) => {
@@ -123,7 +126,7 @@ export const useGameStore = create<GameStore>()(
         const currentUnit = state.units.find(u => u.id === state.currentUnitId)
         if (!currentUnit || currentUnit.actionsRemaining <= 0) return
         
-        if (action === 'move' && !currentUnit.hasMoved) {
+        if (action === 'move') {
           // Calculate valid movement positions
           state.validMoves = getMovementRange(
             currentUnit.position,
@@ -133,7 +136,15 @@ export const useGameStore = create<GameStore>()(
           )
         } else if (action === 'strike') {
           // Calculate valid targets
-          const enemies = state.units.filter(u => u.type !== currentUnit.type && u.hp > 0)
+          let enemies: Unit[] = []
+          if (currentUnit.type === 'turret') {
+            // Turrets target enemies
+            enemies = state.units.filter(u => u.type === 'enemy' && u.hp > 0)
+          } else {
+            // Regular units target opposite type
+            enemies = state.units.filter(u => u.type !== currentUnit.type && u.type !== 'turret' && u.hp > 0)
+          }
+          
           state.validTargets = enemies
             .filter(enemy => {
               const distance = calculateDistance(currentUnit.position, enemy.position)
@@ -145,6 +156,56 @@ export const useGameStore = create<GameStore>()(
               )
             })
             .map(enemy => enemy.id)
+        } else if (action === 'ability') {
+          // Handle ability targeting based on class
+          if (currentUnit.class === 'ironclad') {
+            // Shield Wall targets adjacent allies
+            const allies = state.units.filter(u => 
+              u.type === currentUnit.type && 
+              u.id !== currentUnit.id && 
+              u.hp > 0
+            )
+            state.validTargets = allies
+              .filter(ally => calculateDistance(currentUnit.position, ally.position) === 1)
+              .map(ally => ally.id)
+          } else if (currentUnit.class === 'delver') {
+            // Ore Scanner targets any position within range 4
+            state.validMoves = []
+            for (let y = 0; y < GRID_SIZE; y++) {
+              for (let x = 0; x < GRID_SIZE; x++) {
+                const distance = calculateDistance(currentUnit.position, { x, y })
+                if (distance <= 4) {
+                  state.validMoves.push({ x, y })
+                }
+              }
+            }
+          } else if (currentUnit.class === 'brewmaster') {
+            // Combat Brew targets adjacent wounded allies
+            const allies = state.units.filter(u => 
+              u.type === currentUnit.type && 
+              u.id !== currentUnit.id && 
+              u.hp > 0 &&
+              u.hp < u.maxHp // Only wounded allies
+            )
+            state.validTargets = allies
+              .filter(ally => calculateDistance(currentUnit.position, ally.position) === 1)
+              .map(ally => ally.id)
+          } else if (currentUnit.class === 'engineer') {
+            // Deploy Turret targets empty adjacent squares
+            state.validMoves = []
+            const adjacent = getAdjacentPositions(currentUnit.position)
+            for (const pos of adjacent) {
+              const cell = state.grid[pos.y][pos.x]
+              const occupied = state.units.some(u => 
+                u.position.x === pos.x && 
+                u.position.y === pos.y && 
+                u.hp > 0
+              )
+              if (cell.type !== 'wall' && !occupied) {
+                state.validMoves.push(pos)
+              }
+            }
+          }
         }
       })
     },
@@ -162,7 +223,6 @@ export const useGameStore = create<GameStore>()(
         
         // Move unit
         unit.position = position
-        unit.hasMoved = true
         unit.actionsRemaining -= 1
         
         // Clear selection
@@ -178,18 +238,45 @@ export const useGameStore = create<GameStore>()(
         
         if (!attacker || !target || attacker.actionsRemaining <= 0) return
         
+        // Calculate cover penalty
+        const coverPenalty = getCoverPenalty(attacker.position, target.position, state.grid)
+        
+        // Calculate effective AC (including status effects)
+        let effectiveAC = target.ac
+        const shieldWall = target.statusEffects.find(e => e.type === 'shieldWall')
+        if (shieldWall) {
+          effectiveAC += shieldWall.value
+        }
+        
         // Roll to hit
         const roll = Math.floor(Math.random() * 20) + 1
-        const total = roll + attacker.attackBonus
-        const hit = total >= target.ac
-        const critical = roll === 20 || total >= target.ac + 10
+        const total = roll + attacker.attackBonus - coverPenalty
+        const hit = total >= effectiveAC
+        const critical = roll === 20 || total >= effectiveAC + 10
+        
+        // Store combat info for display
+        const combatInfo = {
+          attackerId,
+          targetId,
+          roll,
+          bonus: attacker.attackBonus,
+          coverPenalty,
+          total,
+          targetAC: effectiveAC,
+          hit,
+          critical,
+          damage: 0
+        }
         
         if (hit) {
           const damage = critical ? attacker.damage * 2 : attacker.damage
           target.hp = Math.max(0, target.hp - damage)
+          combatInfo.damage = damage
         }
         
-        attacker.hasAttacked = true
+        // Store last combat for display
+        state.lastCombat = combatInfo
+        
         attacker.actionsRemaining -= 1
         
         // Clear selection
@@ -208,6 +295,74 @@ export const useGameStore = create<GameStore>()(
       })
     },
     
+    useAbility: (userId: string, targetId?: string, targetPos?: Position) => {
+      set((state) => {
+        const user = state.units.find(u => u.id === userId)
+        if (!user) return
+        
+        const abilityCost = DWARF_STATS[user.class as DwarfClass]?.abilityCost || 0
+        if (user.actionsRemaining < abilityCost) return
+        
+        // Handle abilities based on class
+        if (user.class === 'ironclad' && targetId) {
+          // Shield Wall - grant +2 AC to adjacent ally
+          const target = state.units.find(u => u.id === targetId)
+          if (!target) return
+          
+          // Add shield wall status effect
+          target.statusEffects.push({
+            type: 'shieldWall',
+            value: 2,
+            duration: 1
+          })
+          
+          user.actionsRemaining -= abilityCost
+        } else if (user.class === 'delver' && targetPos) {
+          // Ore Scanner - reveal 3x3 area
+          for (let dy = -1; dy <= 1; dy++) {
+            for (let dx = -1; dx <= 1; dx++) {
+              const x = targetPos.x + dx
+              const y = targetPos.y + dy
+              
+              if (x >= 0 && x < GRID_SIZE && y >= 0 && y < GRID_SIZE) {
+                // Check if already revealed
+                const alreadyRevealed = state.revealedCells.some(
+                  cell => cell.x === x && cell.y === y
+                )
+                if (!alreadyRevealed) {
+                  state.revealedCells.push({ x, y })
+                }
+              }
+            }
+          }
+          
+          user.actionsRemaining -= abilityCost
+        } else if (user.class === 'brewmaster' && targetId) {
+          // Combat Brew - heal adjacent ally 2 HP
+          const target = state.units.find(u => u.id === targetId)
+          if (!target) return
+          
+          target.hp = Math.min(target.maxHp, target.hp + 2)
+          user.actionsRemaining -= abilityCost
+        } else if (user.class === 'engineer' && targetPos) {
+          // Deploy Turret - create turret unit
+          const turret = createUnit('turret', 'engineerTurret', targetPos)
+          turret.ownerId = user.id
+          state.units.push(turret)
+          
+          // Add turret to turn order after the engineer
+          const engineerIndex = state.turnOrder.indexOf(user.id)
+          state.turnOrder.splice(engineerIndex + 1, 0, turret.id)
+          
+          user.actionsRemaining -= abilityCost
+        }
+        
+        // Clear selection
+        state.selectedAction = null
+        state.validTargets = []
+      })
+    },
+    
     endTurn: () => {
       set((state) => {
         const currentIndex = state.turnOrder.indexOf(state.currentUnitId!)
@@ -216,6 +371,13 @@ export const useGameStore = create<GameStore>()(
         // If we've wrapped around, increment round
         if (nextIndex === 0) {
           state.round += 1
+          
+          // Decrement status effect durations at the end of each round
+          state.units.forEach(unit => {
+            unit.statusEffects = unit.statusEffects
+              .map(effect => ({ ...effect, duration: effect.duration - 1 }))
+              .filter(effect => effect.duration > 0)
+          })
         }
         
         // Deactivate current unit
@@ -241,8 +403,6 @@ export const useGameStore = create<GameStore>()(
         if (nextUnit && nextUnit.hp > 0) {
           nextUnit.isActive = true
           nextUnit.actionsRemaining = ACTIONS_PER_TURN
-          nextUnit.hasMoved = false
-          nextUnit.hasAttacked = false
           state.currentUnitId = nextUnit.id
         }
         

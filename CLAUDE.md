@@ -12,6 +12,9 @@ npm run start    # Start production server
 npm run lint     # Run Next.js linting
 ```
 
+## Development Notes
+- dev server is already running in another terminal, you don't need to start it
+
 ## Architecture Overview
 
 This is a tactical combat prototype for The Grudgekeeper, built with Next.js and TypeScript. The game implements a turn-based tactics system similar to Final Fantasy Tactics.

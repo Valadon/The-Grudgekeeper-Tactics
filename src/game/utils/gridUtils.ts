@@ -36,6 +36,60 @@ export const getLineOfSight = (from: Position, to: Position, grid: Cell[][]): bo
   }
 }
 
+export const getCoverPenalty = (from: Position, to: Position, grid: Cell[][]): number => {
+  const dx = Math.abs(to.x - from.x)
+  const dy = Math.abs(to.y - from.y)
+  const sx = from.x < to.x ? 1 : -1
+  const sy = from.y < to.y ? 1 : -1
+  let err = dx - dy
+  
+  let x = from.x
+  let y = from.y
+  let coverPenalty = 0
+  
+  while (true) {
+    // Check if we've reached the target
+    if (x === to.x && y === to.y) break
+    
+    // Check for cover (crates provide partial cover)
+    if ((x !== from.x || y !== from.y) && (x !== to.x || y !== to.y)) {
+      if (grid[y][x].type === 'crate') {
+        coverPenalty = Math.max(coverPenalty, 2) // Partial cover
+      }
+    }
+    
+    const e2 = 2 * err
+    if (e2 > -dy) {
+      err -= dy
+      x += sx
+    }
+    if (e2 < dx) {
+      err += dx
+      y += sy
+    }
+  }
+  
+  // Check adjacent cells to target for additional cover
+  const adjacent = getAdjacentPositions(to)
+  for (const adj of adjacent) {
+    if (adj.x >= 0 && adj.x < GRID_SIZE && adj.y >= 0 && adj.y < GRID_SIZE) {
+      const adjCell = grid[adj.y][adj.x]
+      if (adjCell.type === 'crate' || adjCell.type === 'wall') {
+        // Check if this adjacent cell is between attacker and target
+        const angleToAdj = Math.atan2(adj.y - from.y, adj.x - from.x)
+        const angleToTarget = Math.atan2(to.y - from.y, to.x - from.x)
+        const angleDiff = Math.abs(angleToAdj - angleToTarget)
+        
+        if (angleDiff < Math.PI / 4) { // Within 45 degrees
+          coverPenalty = adjCell.type === 'wall' ? 4 : Math.max(coverPenalty, 2)
+        }
+      }
+    }
+  }
+  
+  return coverPenalty
+}
+
 export const getMovementRange = (
   start: Position,
   speed: number,

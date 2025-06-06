@@ -1,12 +1,32 @@
 'use client'
 
-import { useRef, useEffect } from 'react'
+import { useRef, useEffect, useState } from 'react'
 import { useGameStore } from '../store/gameStore'
 import { GRID_SIZE, CELL_SIZE, UNIT_COLORS, UNIT_INITIALS } from '../constants'
 import { Position } from '../types'
+import { getLineOfSight, getCoverPenalty } from '../utils/gridUtils'
+
+type DamageAnimation = {
+  id: string
+  x: number
+  y: number
+  damage: number
+  critical: boolean
+  startTime: number
+}
+
+type HealAnimation = {
+  id: string
+  x: number
+  y: number
+  amount: number
+  startTime: number
+}
 
 export default function GameBoard() {
   const canvasRef = useRef<HTMLCanvasElement>(null)
+  const [damageAnimations, setDamageAnimations] = useState<DamageAnimation[]>([])
+  const [healAnimations, setHealAnimations] = useState<HealAnimation[]>([])
   const {
     grid,
     units,
@@ -15,10 +35,36 @@ export default function GameBoard() {
     validMoves,
     validTargets,
     hoveredCell,
+    lastCombat,
+    revealedCells,
     moveUnit,
     attackUnit,
+    useAbility,
     hoverCell
   } = useGameStore()
+  
+  // Handle damage animations when combat occurs
+  useEffect(() => {
+    if (lastCombat && lastCombat.hit && lastCombat.damage > 0) {
+      const target = units.find(u => u.id === lastCombat.targetId)
+      if (target) {
+        const newAnimation: DamageAnimation = {
+          id: Math.random().toString(36),
+          x: target.position.x * CELL_SIZE + CELL_SIZE / 2,
+          y: target.position.y * CELL_SIZE,
+          damage: lastCombat.damage,
+          critical: lastCombat.critical,
+          startTime: Date.now()
+        }
+        setDamageAnimations(prev => [...prev, newAnimation])
+        
+        // Remove animation after 1.5 seconds
+        setTimeout(() => {
+          setDamageAnimations(prev => prev.filter(a => a.id !== newAnimation.id))
+        }, 1500)
+      }
+    }
+  }, [lastCombat, units])
   
   const handleCanvasClick = (event: React.MouseEvent<HTMLCanvasElement>) => {
     const canvas = canvasRef.current
@@ -42,6 +88,20 @@ export default function GameBoard() {
       const targetUnit = units.find(u => u.position.x === x && u.position.y === y)
       if (targetUnit && validTargets.includes(targetUnit.id)) {
         attackUnit(currentUnitId, targetUnit.id)
+      }
+    } else if (selectedAction === 'ability' && currentUnitId) {
+      if (currentUnit && (currentUnit.class === 'delver' || currentUnit.class === 'engineer')) {
+        // Delver and Engineer target positions
+        const isValidPosition = validMoves.some(pos => pos.x === x && pos.y === y)
+        if (isValidPosition) {
+          useAbility(currentUnitId, undefined, { x, y })
+        }
+      } else {
+        // Other abilities target units
+        const targetUnit = units.find(u => u.position.x === x && u.position.y === y)
+        if (targetUnit && validTargets.includes(targetUnit.id)) {
+          useAbility(currentUnitId, targetUnit.id)
+        }
       }
     }
   }
@@ -98,12 +158,23 @@ export default function GameBoard() {
         ctx.fillRect(pixelX, pixelY, CELL_SIZE, CELL_SIZE)
         
         // Highlight valid moves
-        if (selectedAction === 'move') {
+        if (selectedAction === 'move' || (selectedAction === 'ability' && currentUnit && (currentUnit.class === 'delver' || currentUnit.class === 'engineer'))) {
           const isValidMove = validMoves.some(move => move.x === x && move.y === y)
           if (isValidMove) {
-            ctx.fillStyle = 'rgba(59, 130, 246, 0.3)'
+            ctx.fillStyle = selectedAction === 'move' 
+              ? 'rgba(59, 130, 246, 0.3)'  // Blue for movement
+              : currentUnit.class === 'delver'
+              ? 'rgba(168, 85, 247, 0.3)'  // Purple for scanner
+              : 'rgba(245, 158, 11, 0.3)'  // Yellow for turret placement
             ctx.fillRect(pixelX, pixelY, CELL_SIZE, CELL_SIZE)
           }
+        }
+        
+        // Show revealed cells
+        const isRevealed = revealedCells.some(pos => pos.x === x && pos.y === y)
+        if (isRevealed) {
+          ctx.fillStyle = 'rgba(168, 85, 247, 0.15)'
+          ctx.fillRect(pixelX, pixelY, CELL_SIZE, CELL_SIZE)
         }
         
         // Highlight hovered cell
@@ -120,6 +191,78 @@ export default function GameBoard() {
       }
     }
     
+    // Draw range indicator when Strike is selected
+    if (selectedAction === 'strike' && currentUnitId) {
+      const currentUnit = units.find(u => u.id === currentUnitId)
+      if (currentUnit) {
+        const maxRange = currentUnit.rangeWeapon || 1
+        
+        // Draw range circle
+        ctx.strokeStyle = 'rgba(239, 68, 68, 0.3)'
+        ctx.lineWidth = 2
+        ctx.setLineDash([10, 5])
+        ctx.beginPath()
+        ctx.arc(
+          currentUnit.position.x * CELL_SIZE + CELL_SIZE / 2,
+          currentUnit.position.y * CELL_SIZE + CELL_SIZE / 2,
+          maxRange * CELL_SIZE + CELL_SIZE / 2,
+          0,
+          Math.PI * 2
+        )
+        ctx.stroke()
+        ctx.setLineDash([])
+      }
+    }
+    
+    // Draw Line of Sight when hovering over a target
+    if (selectedAction === 'strike' && hoveredCell && currentUnitId) {
+      const currentUnit = units.find(u => u.id === currentUnitId)
+      const targetUnit = units.find(u => 
+        u.position.x === hoveredCell.x && 
+        u.position.y === hoveredCell.y &&
+        validTargets.includes(u.id)
+      )
+      
+      if (currentUnit && targetUnit) {
+        // Draw line from attacker to target
+        ctx.strokeStyle = 'rgba(239, 68, 68, 0.8)'
+        ctx.lineWidth = 2
+        ctx.setLineDash([5, 5])
+        ctx.beginPath()
+        ctx.moveTo(
+          currentUnit.position.x * CELL_SIZE + CELL_SIZE / 2,
+          currentUnit.position.y * CELL_SIZE + CELL_SIZE / 2
+        )
+        ctx.lineTo(
+          targetUnit.position.x * CELL_SIZE + CELL_SIZE / 2,
+          targetUnit.position.y * CELL_SIZE + CELL_SIZE / 2
+        )
+        ctx.stroke()
+        ctx.setLineDash([])
+        
+        // Show cover penalty
+        const coverPenalty = getCoverPenalty(currentUnit.position, targetUnit.position, grid)
+        if (coverPenalty > 0) {
+          ctx.fillStyle = '#000000'
+          ctx.fillRect(
+            targetUnit.position.x * CELL_SIZE + CELL_SIZE - 25,
+            targetUnit.position.y * CELL_SIZE + 5,
+            20,
+            20
+          )
+          ctx.fillStyle = '#FFFFFF'
+          ctx.font = 'bold 14px monospace'
+          ctx.textAlign = 'center'
+          ctx.textBaseline = 'middle'
+          ctx.fillText(
+            `-${coverPenalty}`,
+            targetUnit.position.x * CELL_SIZE + CELL_SIZE - 15,
+            targetUnit.position.y * CELL_SIZE + 15
+          )
+        }
+      }
+    }
+    
     // Draw units
     units.forEach(unit => {
       if (unit.hp <= 0) return
@@ -128,8 +271,10 @@ export default function GameBoard() {
       const pixelY = unit.position.y * CELL_SIZE + CELL_SIZE / 2
       
       // Highlight valid targets
-      if (selectedAction === 'strike' && validTargets.includes(unit.id)) {
-        ctx.fillStyle = 'rgba(239, 68, 68, 0.3)'
+      if ((selectedAction === 'strike' || selectedAction === 'ability') && validTargets.includes(unit.id)) {
+        ctx.fillStyle = selectedAction === 'strike' 
+          ? 'rgba(239, 68, 68, 0.3)'  // Red for enemies
+          : 'rgba(59, 130, 246, 0.3)' // Blue for allies
         ctx.fillRect(
           unit.position.x * CELL_SIZE,
           unit.position.y * CELL_SIZE,
@@ -148,6 +293,16 @@ export default function GameBoard() {
       if (unit.isActive) {
         ctx.strokeStyle = '#FFFFFF'
         ctx.lineWidth = 3
+        ctx.stroke()
+      }
+      
+      // Draw status effect indicators
+      const shieldWall = unit.statusEffects.find(e => e.type === 'shieldWall')
+      if (shieldWall) {
+        ctx.strokeStyle = '#3B82F6'
+        ctx.lineWidth = 2
+        ctx.beginPath()
+        ctx.arc(pixelX, pixelY, CELL_SIZE / 3 + 4, 0, Math.PI * 2)
         ctx.stroke()
       }
       
@@ -171,7 +326,48 @@ export default function GameBoard() {
       ctx.fillStyle = hpPercent > 0.5 ? '#10B981' : hpPercent > 0.25 ? '#F59E0B' : '#EF4444'
       ctx.fillRect(barX, barY, barWidth * hpPercent, barHeight)
     })
-  }, [grid, units, currentUnitId, selectedAction, validMoves, validTargets, hoveredCell])
+    
+    // Draw damage animations
+    damageAnimations.forEach(animation => {
+      const elapsed = Date.now() - animation.startTime
+      const progress = Math.min(elapsed / 1500, 1)
+      
+      // Float up and fade out
+      const offsetY = -30 * progress
+      const opacity = 1 - progress
+      
+      ctx.save()
+      ctx.globalAlpha = opacity
+      
+      // Background for better visibility
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.8)'
+      ctx.fillRect(
+        animation.x - 30,
+        animation.y + offsetY - 5,
+        60,
+        30
+      )
+      
+      // Damage text
+      ctx.fillStyle = animation.critical ? '#FBBF24' : '#FFFFFF'
+      ctx.font = `bold ${animation.critical ? '28px' : '24px'} monospace`
+      ctx.textAlign = 'center'
+      ctx.textBaseline = 'middle'
+      ctx.fillText(
+        `-${animation.damage}`,
+        animation.x,
+        animation.y + offsetY + 10
+      )
+      
+      if (animation.critical) {
+        ctx.fillStyle = '#FBBF24'
+        ctx.font = 'bold 12px monospace'
+        ctx.fillText('CRIT!', animation.x, animation.y + offsetY - 10)
+      }
+      
+      ctx.restore()
+    })
+  }, [grid, units, currentUnitId, selectedAction, validMoves, validTargets, hoveredCell, damageAnimations, revealedCells])
   
   return (
     <div className="bg-gray-800 p-4 rounded-lg shadow-lg">

@@ -1,15 +1,17 @@
-import { Unit, UnitType, DwarfClass, EnemyClass, Position } from '../types'
-import { DWARF_STATS, ENEMY_STATS, ACTIONS_PER_TURN } from '../constants'
+import { Unit, UnitType, DwarfClass, EnemyClass, TurretClass, Position } from '../types'
+import { DWARF_STATS, ENEMY_STATS, TURRET_STATS, ACTIONS_PER_TURN } from '../constants'
 import { nanoid } from 'nanoid'
 
 export const createUnit = (
   type: UnitType,
-  unitClass: DwarfClass | EnemyClass,
+  unitClass: DwarfClass | EnemyClass | TurretClass,
   position: Position
 ): Unit => {
   const stats = type === 'dwarf' 
     ? DWARF_STATS[unitClass as DwarfClass]
-    : ENEMY_STATS[unitClass as EnemyClass]
+    : type === 'enemy'
+    ? ENEMY_STATS[unitClass as EnemyClass]
+    : TURRET_STATS[unitClass as TurretClass]
   
   return {
     id: nanoid(),
@@ -25,8 +27,7 @@ export const createUnit = (
     rangeWeapon: stats.weaponRange,
     actionsRemaining: 0,
     isActive: false,
-    hasMoved: false,
-    hasAttacked: false
+    statusEffects: []
   }
 }
 
@@ -42,7 +43,8 @@ export const getUnitDisplayName = (unit: Unit): string => {
     engineer: 'Engineer',
     goblinScavenger: 'Goblin Scavenger',
     goblinGrunt: 'Goblin Grunt',
-    voidWarg: 'Void Warg'
+    voidWarg: 'Void Warg',
+    engineerTurret: 'Turret'
   }
   
   return classNames[unit.class] || unit.class

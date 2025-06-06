@@ -15,44 +15,62 @@ export default function ActionBar() {
   
   const currentUnit = units.find(u => u.id === currentUnitId)
   
-  if (!currentUnit || currentUnit.type !== 'dwarf') {
+  if (!currentUnit || (currentUnit.type !== 'dwarf' && currentUnit.type !== 'turret')) {
     return null
   }
   
-  const stats = DWARF_STATS[currentUnit.class as keyof typeof DWARF_STATS]
+  const stats = currentUnit.type === 'dwarf' 
+    ? DWARF_STATS[currentUnit.class as keyof typeof DWARF_STATS]
+    : null
   
-  const actions: { type: ActionType; label: string; cost: number; disabled: boolean }[] = [
-    {
-      type: 'move',
-      label: 'Move',
-      cost: 1,
-      disabled: currentUnit.hasMoved || currentUnit.actionsRemaining < 1
-    },
-    {
+  const actions: { type: ActionType; label: string; cost: number; disabled: boolean }[] = []
+  
+  if (currentUnit.type === 'turret') {
+    // Turrets can only attack
+    actions.push({
       type: 'strike',
       label: 'Strike',
       cost: 1,
       disabled: currentUnit.actionsRemaining < 1
-    },
-    {
-      type: 'aim',
-      label: 'Aim (+2 next Strike)',
-      cost: 1,
-      disabled: currentUnit.actionsRemaining < 1
-    },
-    {
-      type: 'defend',
-      label: 'Defend (+2 AC)',
-      cost: 1,
-      disabled: currentUnit.actionsRemaining < 1
-    },
-    {
-      type: 'ability',
-      label: stats.abilityName,
-      cost: stats.abilityCost,
-      disabled: currentUnit.actionsRemaining < stats.abilityCost
+    })
+  } else {
+    // Regular dwarf actions
+    actions.push(
+      {
+        type: 'move',
+        label: 'Move',
+        cost: 1,
+        disabled: currentUnit.actionsRemaining < 1
+      },
+      {
+        type: 'strike',
+        label: 'Strike',
+        cost: 1,
+        disabled: currentUnit.actionsRemaining < 1
+      },
+      {
+        type: 'aim',
+        label: 'Aim (+2 next Strike)',
+        cost: 1,
+        disabled: currentUnit.actionsRemaining < 1
+      },
+      {
+        type: 'defend',
+        label: 'Defend (+2 AC)',
+        cost: 1,
+        disabled: currentUnit.actionsRemaining < 1
+      }
+    )
+    
+    if (stats) {
+      actions.push({
+        type: 'ability',
+        label: stats.abilityName,
+        cost: stats.abilityCost,
+        disabled: currentUnit.actionsRemaining < stats.abilityCost
+      })
     }
-  ]
+  }
   
   return (
     <div className="bg-gray-800 p-4 rounded-lg shadow-lg">

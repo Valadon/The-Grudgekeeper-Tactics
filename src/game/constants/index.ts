@@ -107,6 +107,17 @@ export const STORAGE_BAY_LAYOUT = [
   '########'
 ]
 
+export const TURRET_STATS = {
+  engineerTurret: {
+    hp: 3,
+    ac: 10,
+    speed: 0,
+    attackBonus: 2,
+    damage: 1,
+    weaponRange: 4
+  }
+}
+
 export const UNIT_COLORS = {
   ironclad: '#3B82F6',
   delver: '#10B981',
@@ -114,7 +125,8 @@ export const UNIT_COLORS = {
   engineer: '#F59E0B',
   goblinScavenger: '#EF4444',
   goblinGrunt: '#DC2626',
-  voidWarg: '#991B1B'
+  voidWarg: '#991B1B',
+  engineerTurret: '#8B5CF6'
 }
 
 export const UNIT_INITIALS = {
@@ -124,5 +136,6 @@ export const UNIT_INITIALS = {
   engineer: 'E',
   goblinScavenger: 'g',
   goblinGrunt: 'G',
-  voidWarg: 'W'
+  voidWarg: 'W',
+  engineerTurret: 'T'
 }
