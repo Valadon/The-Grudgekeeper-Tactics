@@ -4,8 +4,8 @@ export type Position = {
 }
 
 export type UnitType = 'dwarf' | 'enemy' | 'turret'
-export type DwarfClass = 'ironclad' | 'delver' | 'brewmaster' | 'engineer'
-export type EnemyClass = 'goblinScavenger' | 'goblinGrunt' | 'voidWarg'
+export type DwarfClass = 'voidguard' | 'asteroidMiner' | 'brewmasterEngineer' | 'starRanger'
+export type EnemyClass = 'goblinScavenger' | 'voidHound' | 'corruptedMiningDrone'
 export type TurretClass = 'engineerTurret'
 
 export type StatusEffect = {

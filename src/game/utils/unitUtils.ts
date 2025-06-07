@@ -55,14 +55,14 @@ export const isUnitAlive = (unit: Unit): boolean => {
 export const getUnitDisplayName = (unit: Unit): string => {
   const classNames = {
     // Dwarf classes
-    ironclad: 'Ironclad',
-    delver: 'Delver',
-    brewmaster: 'Brewmaster',
-    engineer: 'Engineer',
+    voidguard: 'Voidguard',
+    asteroidMiner: 'Asteroid Miner',
+    brewmasterEngineer: 'Brewmaster Engineer',
+    starRanger: 'Star Ranger',
     // Enemy classes
     goblinScavenger: 'Goblin Scavenger',
-    goblinGrunt: 'Goblin Grunt',
-    voidWarg: 'Void Warg',
+    voidHound: 'Void Hound',
+    corruptedMiningDrone: 'Corrupted Mining Drone',
     // Special units
     engineerTurret: 'Turret'
   }

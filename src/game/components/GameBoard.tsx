@@ -72,8 +72,8 @@ export default function GameBoard() {
     } 
     // Handle special abilities
     else if (selectedAction === 'ability' && currentUnitId) {
-      if (currentUnit && (currentUnit.class === 'delver' || currentUnit.class === 'engineer')) {
-        // Position-targeted abilities (Ore Scanner, Deploy Turret)
+      if (currentUnit && (currentUnit.class === 'asteroidMiner' || currentUnit.class === 'starRanger')) {
+        // Position-targeted abilities (Ore Sense, Overwatch)
         const isValidPosition = validMoves.some(pos => pos.x === x && pos.y === y)
         if (isValidPosition) {
           // eslint-disable-next-line react-hooks/rules-of-hooks
@@ -167,14 +167,14 @@ export default function GameBoard() {
         ctx.fillRect(pixelX, pixelY, CELL_SIZE, CELL_SIZE)
         
         // Highlight valid moves
-        if (selectedAction === 'move' || (selectedAction === 'ability' && currentUnit && (currentUnit.class === 'delver' || currentUnit.class === 'engineer'))) {
+        if (selectedAction === 'move' || (selectedAction === 'ability' && currentUnit && (currentUnit.class === 'asteroidMiner' || currentUnit.class === 'starRanger'))) {
           const isValidMove = validMoves.some(move => move.x === x && move.y === y)
           if (isValidMove) {
             ctx.fillStyle = selectedAction === 'move' 
               ? 'rgba(59, 130, 246, 0.3)'  // Blue for movement
-              : currentUnit?.class === 'delver'
-              ? 'rgba(168, 85, 247, 0.3)'  // Purple for scanner
-              : 'rgba(245, 158, 11, 0.3)'  // Yellow for turret placement
+              : currentUnit?.class === 'asteroidMiner'
+              ? 'rgba(168, 85, 247, 0.3)'  // Purple for ore sense
+              : 'rgba(245, 158, 11, 0.3)'  // Yellow for overwatch
             ctx.fillRect(pixelX, pixelY, CELL_SIZE, CELL_SIZE)
           }
         }

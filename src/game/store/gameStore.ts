@@ -75,21 +75,21 @@ const initializeUnits = (): Unit[] => {
   const units: Unit[] = []
   
   // Create dwarf units at starting positions
-  units.push(createUnit('dwarf', 'ironclad', { x: 1, y: 4 }))    // Tank class
-  units.push(createUnit('dwarf', 'delver', { x: 2, y: 4 }))      // Scout class
-  units.push(createUnit('dwarf', 'brewmaster', { x: 1, y: 5 }))  // Healer class
-  units.push(createUnit('dwarf', 'engineer', { x: 2, y: 5 }))    // Support class
+  units.push(createUnit('dwarf', 'voidguard', { x: 1, y: 4 }))    // Tank class
+  units.push(createUnit('dwarf', 'asteroidMiner', { x: 2, y: 4 }))      // Scout class
+  units.push(createUnit('dwarf', 'brewmasterEngineer', { x: 1, y: 5 }))  // Support class
+  units.push(createUnit('dwarf', 'starRanger', { x: 2, y: 5 }))    // Ranged DPS class
   
   // Create enemy units based on layout ASCII characters
   for (let y = 0; y < GRID_SIZE; y++) {
     for (let x = 0; x < GRID_SIZE; x++) {
       const char = STORAGE_BAY_LAYOUT[y][x]
       if (char === 'G') {
-        units.push(createUnit('enemy', 'goblinGrunt', { x, y }))      // Melee enemy
+        units.push(createUnit('enemy', 'goblinScavenger', { x, y }))      // Ranged enemy
       } else if (char === 'g') {
         units.push(createUnit('enemy', 'goblinScavenger', { x, y }))  // Ranged enemy
       } else if (char === 'W') {
-        units.push(createUnit('enemy', 'voidWarg', { x, y }))         // Fast melee enemy
+        units.push(createUnit('enemy', 'voidHound', { x, y }))         // Fast melee enemy
       }
     }
   }
@@ -222,7 +222,7 @@ export const useGameStore = create<GameStore>()(
             .map(enemy => enemy.id)
         } else if (action === 'ability') {
           // Handle ability targeting based on class
-          if (currentUnit.class === 'ironclad') {
+          if (currentUnit.class === 'voidguard') {
             // Shield Wall targets adjacent allies
             const allies = state.units.filter(u => 
               u.type === currentUnit.type && 
@@ -232,8 +232,8 @@ export const useGameStore = create<GameStore>()(
             state.validTargets = allies
               .filter(ally => calculateDistance(currentUnit.position, ally.position) === 1)
               .map(ally => ally.id)
-          } else if (currentUnit.class === 'delver') {
-            // Ore Scanner targets any position within range 4
+          } else if (currentUnit.class === 'asteroidMiner') {
+            // Ore Sense targets any position within range 4
             state.validMoves = []
             for (let y = 0; y < GRID_SIZE; y++) {
               for (let x = 0; x < GRID_SIZE; x++) {
@@ -243,7 +243,7 @@ export const useGameStore = create<GameStore>()(
                 }
               }
             }
-          } else if (currentUnit.class === 'brewmaster') {
+          } else if (currentUnit.class === 'brewmasterEngineer') {
             // Combat Brew targets adjacent wounded allies
             const allies = state.units.filter(u => 
               u.type === currentUnit.type && 
@@ -254,21 +254,22 @@ export const useGameStore = create<GameStore>()(
             state.validTargets = allies
               .filter(ally => calculateDistance(currentUnit.position, ally.position) === 1)
               .map(ally => ally.id)
-          } else if (currentUnit.class === 'engineer') {
-            // Deploy Turret targets empty adjacent squares
-            state.validMoves = []
-            const adjacent = getAdjacentPositions(currentUnit.position)
-            for (const pos of adjacent) {
-              const cell = state.grid[pos.y][pos.x]
-              const occupied = state.units.some(u => 
-                u.position.x === pos.x && 
-                u.position.y === pos.y && 
-                u.hp > 0
-              )
-              if (cell.type !== 'wall' && !occupied) {
-                state.validMoves.push(pos)
-              }
-            }
+          } else if (currentUnit.class === 'starRanger') {
+            // Overwatch targets cone area (for now, just target enemies in range)
+            let enemies: Unit[] = []
+            enemies = state.units.filter(u => u.type === 'enemy' && u.hp > 0)
+            
+            state.validTargets = enemies
+              .filter(enemy => {
+                const distance = calculateDistance(currentUnit.position, enemy.position)
+                const maxRange = currentUnit.rangeWeapon || 1
+                return distance <= maxRange && getLineOfSight(
+                  currentUnit.position,
+                  enemy.position,
+                  state.grid
+                )
+              })
+              .map(enemy => enemy.id)
           }
         } else if (action === 'aim' || action === 'defend') {
           // Aim and Defend target the unit itself
@@ -479,15 +480,15 @@ export const useGameStore = create<GameStore>()(
         if (!stateUser) return
         
         // Execute ability based on class type
-        if (stateUser.class === 'ironclad' && targetId) {
-          // SHIELD WALL: Grants +2 AC to adjacent ally for 1 round
+        if (stateUser.class === 'voidguard' && targetId) {
+          // SHIELD WALL: Grants +1 AC to adjacent ally while shield raised
           const target = state.units.find(u => u.id === targetId)
           if (!target) return
           
           // Apply defensive buff
           target.statusEffects.push({
             type: 'shieldWall',
-            value: 2,
+            value: 1,
             duration: 1
           })
           
@@ -497,11 +498,11 @@ export const useGameStore = create<GameStore>()(
           logEntry = {
             type: 'ability',
             message: `${getUnitDisplayName(stateUser)} used Shield Wall on ${getUnitDisplayName(target)}`,
-            details: `+2 AC for 1 round`
+            details: `+1 AC for 1 round`
           }
           
-        } else if (stateUser.class === 'delver' && targetPos) {
-          // ORE SCANNER: Reveals 3x3 area through walls (range 4)
+        } else if (stateUser.class === 'asteroidMiner' && targetPos) {
+          // ORE SENSE: Reveals 3x3 area through walls (range 4)
           // Useful for scouting enemies and planning tactics
           for (let dy = -1; dy <= 1; dy++) {
             for (let dx = -1; dx <= 1; dx++) {
@@ -525,12 +526,12 @@ export const useGameStore = create<GameStore>()(
           
           logEntry = {
             type: 'ability',
-            message: `${getUnitDisplayName(stateUser)} used Ore Scanner`,
+            message: `${getUnitDisplayName(stateUser)} used Ore Sense`,
             details: `Revealed 3x3 area at (${targetPos.x}, ${targetPos.y})`
           }
           
-        } else if (stateUser.class === 'brewmaster' && targetId) {
-          // COMBAT BREW: Heals adjacent ally for 2 HP
+        } else if (stateUser.class === 'brewmasterEngineer' && targetId) {
+          // COMBAT BREW: Heals adjacent ally for 2 HP (will be 1d6 in Phase 2)
           // Cannot overheal beyond max HP
           const target = state.units.find(u => u.id === targetId)
           if (!target) return
@@ -546,24 +547,25 @@ export const useGameStore = create<GameStore>()(
             details: `${getUnitDisplayName(target)} now at ${target.hp}/${target.maxHp} HP`
           }
           
-        } else if (stateUser.class === 'engineer' && targetPos) {
-          // DEPLOY TURRET: Creates autonomous turret unit
-          // Turret has 3 HP, 10 AC, +2 attack, 1 damage, range 4
-          const turret = createUnit('turret', 'engineerTurret', targetPos)
-          turret.ownerId = stateUser.id
-          state.units.push(turret)
+        } else if (stateUser.class === 'starRanger' && targetId) {
+          // OVERWATCH: Set up reaction shot (placeholder implementation)
+          const target = state.units.find(u => u.id === targetId)
+          if (!target) return
           
-          // Insert turret into turn order after engineer
-          const engineerIndex = state.turnOrder.indexOf(stateUser.id)
-          state.turnOrder.splice(engineerIndex + 1, 0, turret.id)
+          // For now, just give a temporary attack bonus like aim
+          stateUser.statusEffects.push({
+            type: 'aimed',
+            value: 2,
+            duration: 1
+          })
           
           stateUser.actionsRemaining -= abilityCost
           abilityUsed = true
           
           logEntry = {
             type: 'ability',
-            message: `${getUnitDisplayName(stateUser)} deployed a turret`,
-            details: `Turret placed at (${targetPos.x}, ${targetPos.y})`
+            message: `${getUnitDisplayName(stateUser)} sets up overwatch`,
+            details: `+2 to next attack (placeholder for full overwatch system)`
           }
         }
         

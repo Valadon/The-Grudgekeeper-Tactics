@@ -15,48 +15,48 @@ export const DWARF_STATS: Record<DwarfClass, {
   abilityDescription: string
   abilityCost: number
 }> = {
-  ironclad: {
-    hp: 8,
-    ac: 14,
-    speed: 4,
+  voidguard: {
+    hp: 10,
+    ac: 16,
+    speed: 2,
     attackBonus: 3,
-    damage: 2,
+    damage: 2, // Will be updated to 1d8 in Phase 2
     abilityName: 'Shield Wall',
-    abilityDescription: 'Grant adjacent ally +2 AC for 1 round',
-    abilityCost: 2
-  },
-  delver: {
-    hp: 6,
-    ac: 12,
-    speed: 6,
-    attackBonus: 4,
-    damage: 1,
-    weaponRange: 6,
-    abilityName: 'Ore Scanner',
-    abilityDescription: 'See through walls in 3x3 area',
+    abilityDescription: 'While shield raised, adjacent allies get +1 AC',
     abilityCost: 1
   },
-  brewmaster: {
-    hp: 7,
-    ac: 13,
-    speed: 5,
-    attackBonus: 2,
-    damage: 1,
-    weaponRange: 4,
-    abilityName: 'Combat Brew',
-    abilityDescription: 'Heal adjacent ally 2 HP',
+  asteroidMiner: {
+    hp: 6,
+    ac: 14,
+    speed: 4,
+    attackBonus: 4,
+    damage: 1, // Will be updated to 1d6 in Phase 2
+    weaponRange: 3,
+    abilityName: 'Precision Drilling',
+    abilityDescription: 'Ignore cover for next Strike',
     abilityCost: 2
   },
-  engineer: {
-    hp: 6,
-    ac: 11,
-    speed: 5,
+  brewmasterEngineer: {
+    hp: 8,
+    ac: 15,
+    speed: 3,
+    attackBonus: 2,
+    damage: 1, // Will be updated to 1d4+1 in Phase 2
+    weaponRange: 4,
+    abilityName: 'Combat Brew',
+    abilityDescription: 'Adjacent ally heals 1d6 or gains +2 damage next turn',
+    abilityCost: 2
+  },
+  starRanger: {
+    hp: 7,
+    ac: 14,
+    speed: 3,
     attackBonus: 3,
-    damage: 1,
-    weaponRange: 8,
-    abilityName: 'Deploy Turret',
-    abilityDescription: 'Place turret with HP 3, AC 10, Attack +2, Damage 1',
-    abilityCost: 3
+    damage: 2, // Will be updated to 1d6+1 in Phase 2
+    weaponRange: 4,
+    abilityName: 'Overwatch',
+    abilityDescription: 'Reaction shot when enemy enters cone',
+    abilityCost: 2
   }
 }
 
@@ -70,29 +70,30 @@ export const ENEMY_STATS: Record<EnemyClass, {
   aiType: 'ranged' | 'melee' | 'hunter'
 }> = {
   goblinScavenger: {
-    hp: 2,
-    ac: 11,
-    speed: 5,
-    attackBonus: 1,
-    damage: 1,
-    weaponRange: 4,
-    aiType: 'ranged'
-  },
-  goblinGrunt: {
     hp: 3,
     ac: 12,
-    speed: 4,
-    attackBonus: 2,
-    damage: 1,
-    aiType: 'melee'
+    speed: 3,
+    attackBonus: 1,
+    damage: 1, // Will be updated to 1d4 in Phase 2
+    weaponRange: 3,
+    aiType: 'ranged'
   },
-  voidWarg: {
-    hp: 6,
-    ac: 13,
-    speed: 7,
-    attackBonus: 3,
-    damage: 2,
+  voidHound: {
+    hp: 5,
+    ac: 14,
+    speed: 5,
+    attackBonus: 2,
+    damage: 1, // Will be updated to 1d6 in Phase 2
     aiType: 'hunter'
+  },
+  corruptedMiningDrone: {
+    hp: 8,
+    ac: 11,
+    speed: 2,
+    attackBonus: 2,
+    damage: 2, // Will be updated to 1d8 in Phase 2
+    weaponRange: 4,
+    aiType: 'ranged'
   }
 }
 
@@ -119,23 +120,23 @@ export const TURRET_STATS = {
 }
 
 export const UNIT_COLORS = {
-  ironclad: '#3B82F6',
-  delver: '#10B981',
-  brewmaster: '#F97316',
-  engineer: '#F59E0B',
+  voidguard: '#3B82F6',
+  asteroidMiner: '#10B981',
+  brewmasterEngineer: '#F97316',
+  starRanger: '#F59E0B',
   goblinScavenger: '#EF4444',
-  goblinGrunt: '#DC2626',
-  voidWarg: '#991B1B',
+  voidHound: '#DC2626',
+  corruptedMiningDrone: '#991B1B',
   engineerTurret: '#8B5CF6'
 }
 
 export const UNIT_INITIALS = {
-  ironclad: 'I',
-  delver: 'D',
-  brewmaster: 'B',
-  engineer: 'E',
+  voidguard: 'V',
+  asteroidMiner: 'A',
+  brewmasterEngineer: 'B',
+  starRanger: 'S',
   goblinScavenger: 'g',
-  goblinGrunt: 'G',
-  voidWarg: 'W',
+  voidHound: 'H',
+  corruptedMiningDrone: 'D',
   engineerTurret: 'T'
 }
