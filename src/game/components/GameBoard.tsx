@@ -276,26 +276,9 @@ export default function GameBoard() {
     units.forEach(unit => {
       if (unit.hp <= 0) return
       
-      // Use animation position if animating, otherwise use actual position
+      // Use actual position (no animations for now)
       let drawX = unit.position.x
       let drawY = unit.position.y
-      
-      if (unit.animationPosition && unit.animationTarget && unit.animationProgress !== undefined) {
-        // Check if this is an attack animation (small bump)
-        const isAttackAnim = Math.abs(unit.animationTarget.x - unit.position.x) < 1 &&
-                           Math.abs(unit.animationTarget.y - unit.position.y) < 1
-        
-        let progress = unit.animationProgress
-        if (isAttackAnim && progress > 1) {
-          // For attack animations, reverse after midpoint
-          progress = 2 - progress
-        }
-        
-        // Interpolate between animation position and target
-        drawX = unit.animationPosition.x + (unit.animationTarget.x - unit.animationPosition.x) * progress
-        drawY = unit.animationPosition.y + (unit.animationTarget.y - unit.animationPosition.y) * progress
-        
-      }
       
       const pixelX = drawX * CELL_SIZE + CELL_SIZE / 2
       const pixelY = drawY * CELL_SIZE + CELL_SIZE / 2
@@ -385,60 +368,6 @@ export default function GameBoard() {
   useEffect(() => {
     drawGame()
   }, [drawGame])
-  
-  // Animation loop for smooth unit movement
-  useEffect(() => {
-    let animationFrameId: number
-    
-    const animate = () => {
-      const store = useGameStore.getState()
-      let hasAnimations = false
-      
-      // Check if any units need animation updates
-      const needsUpdate = store.units.some(unit => 
-        unit.animationProgress !== undefined && unit.animationProgress < 2
-      )
-      
-      if (needsUpdate) {
-        hasAnimations = true
-        
-        // Update animation progress for all units
-        useGameStore.setState(state => ({
-          ...state,
-          units: state.units.map(unit => {
-            if (unit.animationProgress !== undefined && unit.animationProgress < 2) {
-              // Smooth animation over 300ms for movement, 600ms for attack (bump out and back)
-              const increment = 0.08
-              const newProgress = unit.animationProgress + increment
-              
-              return {
-                ...unit,
-                animationProgress: newProgress >= 2 ? undefined : newProgress,
-                // Clear animation when complete
-                animationPosition: newProgress >= 2 ? undefined : unit.animationPosition,
-                animationTarget: newProgress >= 2 ? undefined : unit.animationTarget
-              }
-            }
-            return unit
-          })
-        }))
-      }
-      
-      // Continue animation loop if there are active animations
-      if (hasAnimations) {
-        animationFrameId = requestAnimationFrame(animate)
-      }
-    }
-    
-    // Start the animation loop
-    animationFrameId = requestAnimationFrame(animate)
-    
-    return () => {
-      if (animationFrameId) {
-        cancelAnimationFrame(animationFrameId)
-      }
-    }
-  }, [])
   
   return (
     <div className="bg-gray-800 p-2 lg:p-3 rounded-lg shadow-lg">

@@ -295,10 +295,7 @@ export const useGameStore = create<GameStore>()(
         const stateUnit = state.units.find(u => u.id === unitId)
         if (!stateUnit) return
         
-        // Set up animation
-        stateUnit.animationPosition = { ...stateUnit.position } // Start from current position
-        stateUnit.animationTarget = position
-        stateUnit.animationProgress = 0
+        // Animation removed for now
         
         // Execute move and consume action
         stateUnit.position = position
