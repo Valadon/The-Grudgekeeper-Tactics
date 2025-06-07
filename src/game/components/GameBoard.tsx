@@ -274,8 +274,28 @@ export default function GameBoard() {
     units.forEach(unit => {
       if (unit.hp <= 0) return
       
-      const pixelX = unit.position.x * CELL_SIZE + CELL_SIZE / 2
-      const pixelY = unit.position.y * CELL_SIZE + CELL_SIZE / 2
+      // Use animation position if animating, otherwise use actual position
+      let drawX = unit.position.x
+      let drawY = unit.position.y
+      
+      if (unit.animationPosition && unit.animationTarget && unit.animationProgress !== undefined) {
+        // Check if this is an attack animation (small bump)
+        const isAttackAnim = Math.abs(unit.animationTarget.x - unit.position.x) < 1 &&
+                           Math.abs(unit.animationTarget.y - unit.position.y) < 1
+        
+        let progress = unit.animationProgress
+        if (isAttackAnim && progress > 1) {
+          // For attack animations, reverse after midpoint
+          progress = 2 - progress
+        }
+        
+        // Interpolate between animation position and target
+        drawX = unit.animationPosition.x + (unit.animationTarget.x - unit.animationPosition.x) * progress
+        drawY = unit.animationPosition.y + (unit.animationTarget.y - unit.animationPosition.y) * progress
+      }
+      
+      const pixelX = drawX * CELL_SIZE + CELL_SIZE / 2
+      const pixelY = drawY * CELL_SIZE + CELL_SIZE / 2
       
       // Highlight valid targets
       if ((selectedAction === 'strike' || selectedAction === 'ability') && validTargets.includes(unit.id)) {
@@ -341,7 +361,7 @@ export default function GameBoard() {
       ctx.textBaseline = 'middle'
       ctx.fillText(UNIT_INITIALS[unit.class] || '?', pixelX, pixelY)
       
-      // Draw HP bar
+      // Draw HP bar (always at actual position, not animated position)
       const barWidth = CELL_SIZE - 10
       const barHeight = 4
       const barX = unit.position.x * CELL_SIZE + 5
@@ -363,7 +383,67 @@ export default function GameBoard() {
     drawGame()
   }, [drawGame])
   
-  // Animation loop removed - no longer needed without damage animations
+  // Animation loop for smooth unit movement
+  useEffect(() => {
+    let animationFrameId: number
+    
+    const animate = () => {
+      const store = useGameStore.getState()
+      let hasAnimations = false
+      
+      // Update animation progress for all units
+      store.units.forEach(unit => {
+        if (unit.animationProgress !== undefined && unit.animationProgress < 2) {
+          hasAnimations = true
+          // Smooth animation over 300ms for movement, 600ms for attack (bump out and back)
+          const increment = 0.08
+          const newProgress = unit.animationProgress + increment
+          
+          // For attack animations, reverse direction after reaching midpoint
+          let animProgress = newProgress
+          if (unit.animationPosition && unit.animationTarget && 
+              Math.abs(unit.animationTarget.x - unit.position.x) < 1 &&
+              Math.abs(unit.animationTarget.y - unit.position.y) < 1) {
+            // This is an attack animation (small bump)
+            if (newProgress <= 1) {
+              // Moving toward target
+              animProgress = newProgress
+            } else if (newProgress <= 2) {
+              // Moving back to original position
+              animProgress = 2 - newProgress
+            }
+          }
+          
+          useGameStore.setState(state => ({
+            units: state.units.map(u => 
+              u.id === unit.id 
+                ? { 
+                    ...u, 
+                    animationProgress: newProgress >= 2 ? animProgress : newProgress,
+                    // Clear animation when complete
+                    animationPosition: newProgress >= 2 ? undefined : u.animationPosition,
+                    animationTarget: newProgress >= 2 ? undefined : u.animationTarget
+                  } 
+                : u
+            )
+          }))
+        }
+      })
+      
+      // Continue animation loop if there are active animations
+      if (hasAnimations) {
+        animationFrameId = requestAnimationFrame(animate)
+      }
+    }
+    
+    animationFrameId = requestAnimationFrame(animate)
+    
+    return () => {
+      if (animationFrameId) {
+        cancelAnimationFrame(animationFrameId)
+      }
+    }
+  }, [])
   
   return (
     <div className="bg-gray-800 p-2 lg:p-3 rounded-lg shadow-lg">

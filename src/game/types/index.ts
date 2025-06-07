@@ -30,6 +30,10 @@ export type Unit = {
   isActive: boolean
   statusEffects: StatusEffect[]
   ownerId?: string // For turrets to track their creator
+  // Animation properties
+  animationPosition?: Position // Current animation position
+  animationTarget?: Position // Target position for animation
+  animationProgress?: number // 0-1 progress of animation
 }
 
 export type CellType = 'floor' | 'wall' | 'crate' | 'door'

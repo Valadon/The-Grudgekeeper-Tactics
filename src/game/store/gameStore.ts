@@ -295,6 +295,11 @@ export const useGameStore = create<GameStore>()(
         const stateUnit = state.units.find(u => u.id === unitId)
         if (!stateUnit) return
         
+        // Set up animation
+        stateUnit.animationPosition = { ...stateUnit.position } // Start from current position
+        stateUnit.animationTarget = position
+        stateUnit.animationProgress = 0
+        
         // Execute move and consume action
         stateUnit.position = position
         stateUnit.actionsRemaining -= 1
@@ -390,6 +395,23 @@ export const useGameStore = create<GameStore>()(
         const stateTarget = state.units.find(u => u.id === targetId)
         
         if (!stateAttacker || !stateTarget) return
+        
+        // Set up attack animation (bump toward target)
+        const dx = stateTarget.position.x - stateAttacker.position.x
+        const dy = stateTarget.position.y - stateAttacker.position.y
+        const distance = Math.sqrt(dx * dx + dy * dy)
+        
+        // Normalize direction and scale for bump
+        const bumpDistance = 0.3 // Bump 30% of a cell
+        const bumpX = (dx / distance) * bumpDistance
+        const bumpY = (dy / distance) * bumpDistance
+        
+        stateAttacker.animationPosition = { ...stateAttacker.position }
+        stateAttacker.animationTarget = {
+          x: stateAttacker.position.x + bumpX,
+          y: stateAttacker.position.y + bumpY
+        }
+        stateAttacker.animationProgress = 0
         
         if (hit) {
           stateTarget.hp = Math.max(0, stateTarget.hp - combatInfo.damage)
