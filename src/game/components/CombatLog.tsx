@@ -9,23 +9,40 @@ export default function CombatLog() {
   
   // Auto-scroll to bottom when new entries are added
   useEffect(() => {
-    if (scrollRef.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight
+    const scrollElement = scrollRef.current
+    if (scrollElement && combatLog.length > 0) {
+      // Use requestAnimationFrame to ensure DOM has fully updated
+      requestAnimationFrame(() => {
+        // Method 1: Set scrollTop directly
+        scrollElement.scrollTop = scrollElement.scrollHeight
+        
+        // Method 2: If direct scrollTop doesn't work, use scrollIntoView as fallback
+        const lastChild = scrollElement.lastElementChild
+        if (lastChild && scrollElement.scrollTop !== scrollElement.scrollHeight - scrollElement.clientHeight) {
+          lastChild.scrollIntoView({ behavior: 'smooth', block: 'end' })
+        }
+      })
     }
-  }, [combatLog])
+  }, [combatLog]) // Watch the entire combatLog array
   
   return (
-    <div className="bg-gray-800 p-3 rounded-lg shadow-lg h-full flex flex-col">
+    <div className="bg-gray-800 p-3 rounded-lg shadow-lg h-full max-h-full">
       <h3 className="text-base font-semibold mb-2">Combat Log</h3>
       <div 
         ref={scrollRef}
-        className="flex-1 overflow-y-auto space-y-1 text-sm font-mono"
-        style={{ maxHeight: '400px' }}
+        className="text-sm font-mono p-2 border border-gray-600"
+        style={{ 
+          height: '320px',
+          overflowY: 'scroll',
+          scrollbarWidth: 'thin',
+          scrollbarColor: '#4B5563 #1F2937'
+        }}
       >
-        {combatLog.length === 0 && (
-          <div className="text-gray-500 italic">Battle begins...</div>
-        )}
-{combatLog.map((entry, index) => {
+        <div className="space-y-1">
+          {combatLog.length === 0 && (
+            <div className="text-gray-500 italic">Battle begins...</div>
+          )}
+          {combatLog.map((entry, index) => {
           const prevEntry = index > 0 ? combatLog[index - 1] : null
           const showRound = !prevEntry || prevEntry.round !== entry.round
           
@@ -55,6 +72,7 @@ export default function CombatLog() {
             </div>
           )
         })}
+        </div>
       </div>
     </div>
   )

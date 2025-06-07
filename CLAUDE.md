@@ -15,6 +15,34 @@ npm run lint     # Run Next.js linting
 ## Development Notes
 - dev server is already running in another terminal, you don't need to start it
 
+## ACTIVE BUG TO INVESTIGATE (6/6/2024)
+
+**Combat Log Scrolling Issue**:
+- Problem: Combat log is not auto-scrolling to bottom when new messages are added
+- Symptoms: Console logs show correct calculations but scrollTop always stays at 0
+- Console evidence:
+  ```
+  Element clientHeight: 500 scrollHeight: 624
+  Target scroll position: 124
+  Actually scrolled to: 0  // ← Problem: should be 124
+  ```
+- Root cause: scrollTop assignment is not taking effect despite correct calculations
+- Likely causes to investigate:
+  1. CSS overflow/layout conflicts on parent containers
+  2. React interference with direct DOM manipulation
+  3. CSS styles that force scroll position reset
+  4. Timing issues with DOM updates
+
+**Files involved:**
+- `/src/game/components/CombatLog.tsx` - scroll logic implementation
+- `/src/app/game/page.tsx` - parent container layout
+
+**Next steps:**
+1. Check all parent containers for overflow: hidden or conflicting styles
+2. Try alternative scroll methods (scrollIntoView, smooth scroll)
+3. Investigate CSS layout hierarchy for scroll-blocking styles
+4. Test if scroll works when triggered manually (not in useEffect)
+
 ## Architecture Overview
 
 This is a tactical combat prototype for The Grudgekeeper, built with Next.js and TypeScript. The game implements a turn-based tactics system similar to Final Fantasy Tactics.

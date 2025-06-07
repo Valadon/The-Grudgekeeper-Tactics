@@ -28,6 +28,8 @@ export default function GameBoard() {
     moveUnit,
     attackUnit,
     useAbility,
+    aimAction,
+    defendAction,
     hoverCell
   } = useGameStore()
   
@@ -82,6 +84,20 @@ export default function GameBoard() {
         if (targetUnit && validTargets.includes(targetUnit.id)) {
           useAbility(currentUnitId, targetUnit.id)
         }
+      }
+    }
+    // Handle aim action
+    else if (selectedAction === 'aim' && currentUnitId) {
+      const targetUnit = units.find(u => u.position.x === x && u.position.y === y)
+      if (targetUnit && targetUnit.id === currentUnitId) {
+        aimAction(currentUnitId)
+      }
+    }
+    // Handle defend action
+    else if (selectedAction === 'defend' && currentUnitId) {
+      const targetUnit = units.find(u => u.position.x === x && u.position.y === y)
+      if (targetUnit && targetUnit.id === currentUnitId) {
+        defendAction(currentUnitId)
       }
     }
   }
@@ -295,6 +311,27 @@ export default function GameBoard() {
         ctx.beginPath()
         ctx.arc(pixelX, pixelY, CELL_SIZE / 3 + 4, 0, Math.PI * 2)
         ctx.stroke()
+      }
+      
+      const aimed = unit.statusEffects.find(e => e.type === 'aimed')
+      if (aimed) {
+        ctx.strokeStyle = '#F59E0B'
+        ctx.lineWidth = 2
+        ctx.setLineDash([5, 3])
+        ctx.beginPath()
+        ctx.arc(pixelX, pixelY, CELL_SIZE / 3 + 8, 0, Math.PI * 2)
+        ctx.stroke()
+        ctx.setLineDash([])
+      }
+      
+      const defending = unit.statusEffects.find(e => e.type === 'defending')
+      if (defending) {
+        ctx.strokeStyle = '#10B981'
+        ctx.lineWidth = 3
+        ctx.beginPath()
+        // Draw a square around the unit for defending
+        const size = CELL_SIZE / 3 + 6
+        ctx.strokeRect(pixelX - size, pixelY - size, size * 2, size * 2)
       }
       
       // Draw unit initial

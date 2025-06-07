@@ -23,6 +23,8 @@ interface GameStore extends GameState {
   moveUnit: (unitId: string, position: Position) => void
   attackUnit: (attackerId: string, targetId: string) => void
   useAbility: (userId: string, targetId?: string, targetPos?: Position) => void
+  aimAction: (unitId: string) => void
+  defendAction: (unitId: string) => void
   
   // Turn management
   endTurn: () => void
@@ -268,6 +270,9 @@ export const useGameStore = create<GameStore>()(
               }
             }
           }
+        } else if (action === 'aim' || action === 'defend') {
+          // Aim and Defend target the unit itself
+          state.validTargets = [currentUnit.id]
         }
       })
     },
@@ -321,16 +326,27 @@ export const useGameStore = create<GameStore>()(
       // Check for cover between attacker and target (-2 AC for crates, -4 for walls)
       const coverPenalty = getCoverPenalty(attacker.position, target.position, get().grid)
       
-      // Apply status effects to AC (e.g., Shield Wall buff)
+      // Apply status effects to AC (e.g., Shield Wall, Defending)
       let effectiveAC = target.ac
       const shieldWall = target.statusEffects.find(e => e.type === 'shieldWall')
       if (shieldWall) {
         effectiveAC += shieldWall.value
       }
+      const defending = target.statusEffects.find(e => e.type === 'defending')
+      if (defending) {
+        effectiveAC += defending.value
+      }
+      
+      // Apply status effects to attack bonus (e.g., Aimed)
+      let attackBonus = attacker.attackBonus
+      const aimed = attacker.statusEffects.find(e => e.type === 'aimed')
+      if (aimed) {
+        attackBonus += aimed.value
+      }
       
       // Combat resolution: d20 + bonus - penalty vs AC
       const roll = Math.floor(Math.random() * 20) + 1
-      const total = roll + attacker.attackBonus - coverPenalty
+      const total = roll + attackBonus - coverPenalty
       const hit = total >= effectiveAC
       const critical = roll === 20 || total >= effectiveAC + 10
       
@@ -339,7 +355,7 @@ export const useGameStore = create<GameStore>()(
         attackerId,
         targetId,
         roll,
-        bonus: attacker.attackBonus,
+        bonus: attackBonus,
         coverPenalty,
         total,
         targetAC: effectiveAC,
@@ -357,6 +373,12 @@ export const useGameStore = create<GameStore>()(
       const attackerName = getUnitDisplayName(attacker)
       const targetName = getUnitDisplayName(target)
       let attackDetails = `d20(${roll}) + ${attacker.attackBonus}`
+      
+      // Show aimed bonus separately if present
+      if (aimed) {
+        attackDetails += ` + ${aimed.value} (aimed)`
+      }
+      
       if (coverPenalty > 0) {
         attackDetails += ` - ${coverPenalty} (cover)`
       }
@@ -377,6 +399,9 @@ export const useGameStore = create<GameStore>()(
         state.lastCombat = combatInfo
         
         stateAttacker.actionsRemaining -= 1
+        
+        // Remove aimed status effect after use
+        stateAttacker.statusEffects = stateAttacker.statusEffects.filter(e => e.type !== 'aimed')
         
         // Clear selection
         state.selectedAction = null
@@ -714,6 +739,72 @@ export const useGameStore = create<GameStore>()(
           ...entry,
           round: currentRound
         }]
+      })
+    },
+    
+    /**
+     * Aim action - gives +2 to next attack roll
+     */
+    aimAction: (unitId: string) => {
+      const unit = get().units.find(u => u.id === unitId)
+      if (!unit || unit.actionsRemaining <= 0) return
+      
+      set((state) => {
+        const stateUnit = state.units.find(u => u.id === unitId)
+        if (!stateUnit) return
+        
+        // Apply aimed status effect
+        stateUnit.statusEffects.push({
+          type: 'aimed',
+          value: 2,
+          duration: 1 // Lasts until next turn
+        })
+        
+        stateUnit.actionsRemaining -= 1
+        
+        // Clear selection
+        state.selectedAction = null
+        state.validTargets = []
+      })
+      
+      // Log the action
+      get().addLogEntry({
+        type: 'ability',
+        message: `${getUnitDisplayName(unit)} takes aim`,
+        details: '+2 to next attack'
+      })
+    },
+    
+    /**
+     * Defend action - gives +2 AC until next turn
+     */
+    defendAction: (unitId: string) => {
+      const unit = get().units.find(u => u.id === unitId)
+      if (!unit || unit.actionsRemaining <= 0) return
+      
+      set((state) => {
+        const stateUnit = state.units.find(u => u.id === unitId)
+        if (!stateUnit) return
+        
+        // Apply defending status effect
+        stateUnit.statusEffects.push({
+          type: 'defending',
+          value: 2,
+          duration: 1 // Lasts until next turn
+        })
+        
+        stateUnit.actionsRemaining -= 1
+        
+        // Clear selection
+        state.selectedAction = null
+        state.validTargets = []
+      })
+      
+      // Log the action
+      get().addLogEntry({
+        type: 'ability',
+        message: `${getUnitDisplayName(unit)} takes a defensive stance`,
+        details: '+2 AC until next turn'
       })
     }
   }))

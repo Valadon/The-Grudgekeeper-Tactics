@@ -21,7 +21,7 @@ export default function GamePage() {
   }
   
   return (
-    <div className="min-h-screen bg-gray-900 p-2 lg:p-4">
+    <div className="min-h-screen bg-gray-900 p-2 lg:p-4 overflow-hidden">
       <div className="max-w-7xl mx-auto">
         <h1 className="text-xl lg:text-2xl font-bold text-center mb-3 lg:mb-4">The Grudgekeeper - Tactical Combat</h1>
         
@@ -36,7 +36,7 @@ export default function GamePage() {
             <TurnOrderPanel />
           </div>
           
-          <div className="h-[600px]">
+          <div className="h-[400px]">
             <CombatLog />
           </div>
         </div>
