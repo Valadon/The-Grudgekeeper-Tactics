@@ -21,14 +21,16 @@ export default function GamePage() {
   }
   
   return (
-    <div className="min-h-screen bg-gray-900 p-2 lg:p-4 overflow-hidden">
-      <div className="max-w-7xl mx-auto">
+    <div className="min-h-screen bg-gray-900 p-2 lg:p-4 flex flex-col">
+      <div className="max-w-7xl mx-auto flex-1 flex flex-col">
         <h1 className="text-xl lg:text-2xl font-bold text-center mb-3 lg:mb-4">The Grudgekeeper - Tactical Combat</h1>
         
-        <div className="grid grid-cols-1 lg:grid-cols-[1fr_300px_300px] gap-3 lg:gap-4">
-          <div className="space-y-3">
+        <div className="grid grid-cols-1 lg:grid-cols-[1fr_300px_300px] gap-3 lg:gap-4 flex-1 min-h-0">
+          <div className="flex flex-col min-h-0">
             <GameBoard />
-            <ActionBar />
+            <div className="flex-1 min-h-0 mt-3">
+              <ActionBar />
+            </div>
           </div>
           
           <div className="space-y-3">

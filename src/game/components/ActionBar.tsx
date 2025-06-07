@@ -122,8 +122,8 @@ export default function ActionBar() {
   }
   
   return (
-    <div className="bg-gray-800 p-3 rounded-lg shadow-lg">
-      <div className="flex items-center justify-between mb-3">
+    <div className="bg-gray-800 p-3 rounded-lg shadow-lg h-full flex flex-col">
+      <div className="flex items-center justify-between mb-3 flex-shrink-0">
         <h3 className="text-base font-semibold">Actions</h3>
         <div className="flex items-center gap-3">
           <span className="text-lg font-bold text-blue-400">
@@ -144,33 +144,35 @@ export default function ActionBar() {
         </div>
       </div>
       
-      <div className="grid grid-cols-4 gap-1 mb-3">
-        {actions.map(action => (
-          <button
-            key={action.type}
-            onClick={() => handleActionClick(action.type)}
-            disabled={action.disabled}
-            className={`
-              px-2 py-2 rounded text-xs font-medium transition-colors
-              ${selectedAction === action.type
-                ? 'bg-blue-600 text-white'
-                : action.disabled
-                ? 'bg-gray-700 text-gray-500 cursor-not-allowed'
-                : 'bg-gray-700 hover:bg-gray-600 text-white'
-              }
-            `}
-          >
-            {action.label}
-            <span className="block text-xs opacity-75">
-              Cost: {action.cost}
-            </span>
-          </button>
-        ))}
+      <div className="flex-1 overflow-y-auto mb-3">
+        <div className="grid grid-cols-2 xl:grid-cols-3 gap-2">
+          {actions.map(action => (
+            <button
+              key={action.type}
+              onClick={() => handleActionClick(action.type)}
+              disabled={action.disabled}
+              className={`
+                px-2 py-2 rounded text-xs font-medium transition-colors min-h-[3rem] flex flex-col justify-center
+                ${selectedAction === action.type
+                  ? 'bg-blue-600 text-white'
+                  : action.disabled
+                  ? 'bg-gray-700 text-gray-500 cursor-not-allowed'
+                  : 'bg-gray-700 hover:bg-gray-600 text-white'
+                }
+              `}
+            >
+              <span className="leading-tight text-center">{action.label}</span>
+              <span className="text-[10px] opacity-75 mt-1 text-center">
+                Cost: {action.cost}
+              </span>
+            </button>
+          ))}
+        </div>
       </div>
       
       <button
         onClick={endTurn}
-        className="w-full px-4 py-2 bg-green-600 hover:bg-green-700 text-white font-medium rounded transition-colors"
+        className="w-full px-4 py-2 bg-green-600 hover:bg-green-700 text-white font-medium rounded transition-colors flex-shrink-0"
       >
         End Turn
       </button>
