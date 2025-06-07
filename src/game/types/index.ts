@@ -29,6 +29,7 @@ export type Unit = {
   currentAmmo?: number // Current ammo count (undefined for melee weapons)
   maxAmmo?: number // Maximum ammo capacity (undefined for melee weapons)
   actionsRemaining: number
+  strikesThisTurn: number // Track attacks for Multiple Attack Penalty (MAP)
   isActive: boolean
   statusEffects: StatusEffect[]
   ownerId?: string // For turrets to track their creator
@@ -52,6 +53,7 @@ export type CombatInfo = {
   roll: number
   bonus: number
   coverPenalty: number
+  mapPenalty: number // Multiple Attack Penalty
   total: number
   targetAC: number
   hit: boolean

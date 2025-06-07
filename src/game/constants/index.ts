@@ -4,6 +4,9 @@ export const GRID_SIZE = 8
 export const CELL_SIZE = 64
 export const ACTIONS_PER_TURN = 3
 
+// Multiple Attack Penalty (MAP) system
+export const MAP_PENALTIES = [0, -5, -10] // Indexed by strike number (0-based)
+
 export const DWARF_STATS: Record<DwarfClass, {
   hp: number
   ac: number

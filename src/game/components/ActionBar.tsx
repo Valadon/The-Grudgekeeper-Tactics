@@ -2,7 +2,7 @@
 
 import { useGameStore } from '../store/gameStore'
 import { ActionType } from '../types'
-import { DWARF_STATS } from '../constants'
+import { DWARF_STATS, MAP_PENALTIES } from '../constants'
 
 export default function ActionBar() {
   const { 
@@ -28,13 +28,17 @@ export default function ActionBar() {
     selectAction(actionType)
   }
   
+  // Calculate MAP penalty for strike button display
+  const mapPenalty = MAP_PENALTIES[Math.min(currentUnit.strikesThisTurn, MAP_PENALTIES.length - 1)]
+  const strikeLabel = mapPenalty < 0 ? `Strike (${mapPenalty})` : 'Strike'
+
   const actions: { type: ActionType; label: string; cost: number; disabled: boolean }[] = []
   
   if (currentUnit.type === 'turret') {
     // Turrets can only attack
     actions.push({
       type: 'strike',
-      label: 'Strike',
+      label: strikeLabel,
       cost: 1,
       disabled: currentUnit.actionsRemaining < 1 || 
                Boolean(currentUnit.currentAmmo !== undefined && currentUnit.currentAmmo <= 0)
@@ -56,7 +60,7 @@ export default function ActionBar() {
       },
       {
         type: 'strike',
-        label: 'Strike',
+        label: strikeLabel,
         cost: 1,
         disabled: currentUnit.actionsRemaining < 1 || 
                  Boolean(currentUnit.rangeWeapon && currentUnit.currentAmmo !== undefined && currentUnit.currentAmmo <= 0)

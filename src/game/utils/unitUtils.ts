@@ -40,6 +40,7 @@ export const createUnit = (
     currentAmmo: hasAmmo ? stats.ammoCapacity : undefined,
     maxAmmo: hasAmmo ? stats.ammoCapacity : undefined,
     actionsRemaining: 0,  // Will be set when unit's turn starts
+    strikesThisTurn: 0,   // Track attacks for Multiple Attack Penalty (MAP)
     isActive: false,       // Will be true during unit's turn
     statusEffects: []      // Empty array for buffs/debuffs
   }

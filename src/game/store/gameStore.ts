@@ -1,7 +1,7 @@
 import { create } from 'zustand'
 import { immer } from 'zustand/middleware/immer'
 import { GameState, Unit, Position, ActionType, Cell, CellType, CombatInfo, DwarfClass, CombatLogEntry } from '../types'
-import { GRID_SIZE, STORAGE_BAY_LAYOUT, ACTIONS_PER_TURN, DWARF_STATS, ENEMY_STATS } from '../constants'
+import { GRID_SIZE, STORAGE_BAY_LAYOUT, ACTIONS_PER_TURN, DWARF_STATS, ENEMY_STATS, MAP_PENALTIES } from '../constants'
 import { nanoid } from 'nanoid'
 import { calculateDistance, getLineOfSight, getMovementRange, getCoverPenalty, getAdjacentPositions } from '../utils/gridUtils'
 import { createUnit, getUnitDisplayName } from '../utils/unitUtils'
@@ -366,6 +366,9 @@ export const useGameStore = create<GameStore>()(
       // Check for cover between attacker and target (-2 AC for crates, -4 for walls)
       const coverPenalty = getCoverPenalty(attacker.position, target.position, get().grid)
       
+      // Calculate Multiple Attack Penalty (MAP) based on strikes this turn
+      const mapPenalty = MAP_PENALTIES[Math.min(attacker.strikesThisTurn, MAP_PENALTIES.length - 1)]
+      
       // Apply status effects to AC (e.g., Shield Wall, Defending)
       let effectiveAC = target.ac
       const shieldWall = target.statusEffects.find(e => e.type === 'shieldWall')
@@ -384,9 +387,9 @@ export const useGameStore = create<GameStore>()(
         attackBonus += aimed.value
       }
       
-      // Combat resolution: d20 + bonus - penalty vs AC
+      // Combat resolution: d20 + bonus - cover penalty - MAP penalty vs AC
       const roll = rollD20()
-      const total = roll + attackBonus - coverPenalty
+      const total = roll + attackBonus - coverPenalty - Math.abs(mapPenalty)
       const hit = total >= effectiveAC
       const critical = isCriticalHit(roll, total, effectiveAC)
       
@@ -413,6 +416,7 @@ export const useGameStore = create<GameStore>()(
         roll,
         bonus: attackBonus,
         coverPenalty,
+        mapPenalty,
         total,
         targetAC: effectiveAC,
         hit,
@@ -433,6 +437,11 @@ export const useGameStore = create<GameStore>()(
       if (coverPenalty > 0) {
         attackDetails += ` - ${coverPenalty} (cover)`
       }
+      
+      if (mapPenalty < 0) {
+        attackDetails += ` - ${Math.abs(mapPenalty)} (MAP)`
+      }
+      
       attackDetails += ` = ${total} vs AC ${effectiveAC}`
       
       // Update state
@@ -467,6 +476,9 @@ export const useGameStore = create<GameStore>()(
         state.lastCombat = combatInfo
         
         stateAttacker.actionsRemaining -= 1
+        
+        // Increment strikes this turn for Multiple Attack Penalty (MAP)
+        stateAttacker.strikesThisTurn += 1
         
         // Consume ammo for ranged attacks
         if (stateAttacker.rangeWeapon && stateAttacker.currentAmmo !== undefined) {
@@ -720,6 +732,7 @@ export const useGameStore = create<GameStore>()(
         if (nextUnit && nextUnit.hp > 0) {
           nextUnit.isActive = true
           nextUnit.actionsRemaining = ACTIONS_PER_TURN
+          nextUnit.strikesThisTurn = 0  // Reset MAP counter for new turn
           state.currentUnitId = nextUnit.id
         }
         
