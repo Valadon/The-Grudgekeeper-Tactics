@@ -2,6 +2,7 @@
 
 import { useGameStore } from '../store/gameStore'
 import { useMemo } from 'react'
+import Link from 'next/link'
 
 export default function VictoryScreen() {
   const { phase, restartGame, units, round, combatLog } = useGameStore()
@@ -172,12 +173,12 @@ export default function VictoryScreen() {
             Play Again
           </button>
           
-          <a
+          <Link
             href="/"
-            className="block w-full px-6 py-3 bg-gray-700 hover:bg-gray-600 text-white font-medium rounded-lg transition-colors"
+            className="block w-full px-6 py-3 bg-gray-700 hover:bg-gray-600 text-white font-medium rounded-lg transition-colors text-center"
           >
             Return to Menu
-          </a>
+          </Link>
         </div>
       </div>
     </div>

@@ -76,12 +76,14 @@ export default function GameBoard() {
         // Position-targeted abilities (Ore Scanner, Deploy Turret)
         const isValidPosition = validMoves.some(pos => pos.x === x && pos.y === y)
         if (isValidPosition) {
+          // eslint-disable-next-line react-hooks/rules-of-hooks
           useAbility(currentUnitId, undefined, { x, y })
         }
       } else {
         // Unit-targeted abilities (Shield Wall, Combat Brew)
         const targetUnit = units.find(u => u.position.x === x && u.position.y === y)
         if (targetUnit && validTargets.includes(targetUnit.id)) {
+          // eslint-disable-next-line react-hooks/rules-of-hooks
           useAbility(currentUnitId, targetUnit.id)
         }
       }
@@ -292,6 +294,7 @@ export default function GameBoard() {
         // Interpolate between animation position and target
         drawX = unit.animationPosition.x + (unit.animationTarget.x - unit.animationPosition.x) * progress
         drawY = unit.animationPosition.y + (unit.animationTarget.y - unit.animationPosition.y) * progress
+        
       }
       
       const pixelX = drawX * CELL_SIZE + CELL_SIZE / 2
@@ -361,11 +364,11 @@ export default function GameBoard() {
       ctx.textBaseline = 'middle'
       ctx.fillText(UNIT_INITIALS[unit.class] || '?', pixelX, pixelY)
       
-      // Draw HP bar (always at actual position, not animated position)
+      // Draw HP bar at the same position as the animated unit
       const barWidth = CELL_SIZE - 10
       const barHeight = 4
-      const barX = unit.position.x * CELL_SIZE + 5
-      const barY = unit.position.y * CELL_SIZE + 5
+      const barX = drawX * CELL_SIZE + 5
+      const barY = drawY * CELL_SIZE + 5
       
       ctx.fillStyle = '#000000'
       ctx.fillRect(barX - 1, barY - 1, barWidth + 2, barHeight + 2)
@@ -391,44 +394,35 @@ export default function GameBoard() {
       const store = useGameStore.getState()
       let hasAnimations = false
       
-      // Update animation progress for all units
-      store.units.forEach(unit => {
-        if (unit.animationProgress !== undefined && unit.animationProgress < 2) {
-          hasAnimations = true
-          // Smooth animation over 300ms for movement, 600ms for attack (bump out and back)
-          const increment = 0.08
-          const newProgress = unit.animationProgress + increment
-          
-          // For attack animations, reverse direction after reaching midpoint
-          let animProgress = newProgress
-          if (unit.animationPosition && unit.animationTarget && 
-              Math.abs(unit.animationTarget.x - unit.position.x) < 1 &&
-              Math.abs(unit.animationTarget.y - unit.position.y) < 1) {
-            // This is an attack animation (small bump)
-            if (newProgress <= 1) {
-              // Moving toward target
-              animProgress = newProgress
-            } else if (newProgress <= 2) {
-              // Moving back to original position
-              animProgress = 2 - newProgress
+      // Check if any units need animation updates
+      const needsUpdate = store.units.some(unit => 
+        unit.animationProgress !== undefined && unit.animationProgress < 2
+      )
+      
+      if (needsUpdate) {
+        hasAnimations = true
+        
+        // Update animation progress for all units
+        useGameStore.setState(state => ({
+          ...state,
+          units: state.units.map(unit => {
+            if (unit.animationProgress !== undefined && unit.animationProgress < 2) {
+              // Smooth animation over 300ms for movement, 600ms for attack (bump out and back)
+              const increment = 0.08
+              const newProgress = unit.animationProgress + increment
+              
+              return {
+                ...unit,
+                animationProgress: newProgress >= 2 ? undefined : newProgress,
+                // Clear animation when complete
+                animationPosition: newProgress >= 2 ? undefined : unit.animationPosition,
+                animationTarget: newProgress >= 2 ? undefined : unit.animationTarget
+              }
             }
-          }
-          
-          useGameStore.setState(state => ({
-            units: state.units.map(u => 
-              u.id === unit.id 
-                ? { 
-                    ...u, 
-                    animationProgress: newProgress >= 2 ? animProgress : newProgress,
-                    // Clear animation when complete
-                    animationPosition: newProgress >= 2 ? undefined : u.animationPosition,
-                    animationTarget: newProgress >= 2 ? undefined : u.animationTarget
-                  } 
-                : u
-            )
-          }))
-        }
-      })
+            return unit
+          })
+        }))
+      }
       
       // Continue animation loop if there are active animations
       if (hasAnimations) {
@@ -436,6 +430,7 @@ export default function GameBoard() {
       }
     }
     
+    // Start the animation loop
     animationFrameId = requestAnimationFrame(animate)
     
     return () => {
