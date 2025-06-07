@@ -14,25 +14,10 @@ npm run lint     # Run Next.js linting
 
 ## Development Notes
 - dev server is already running in another terminal, you don't need to start it
+- **IMPORTANT**: Always check `claude-todo.md` for the current implementation status and task list
+- **IMPORTANT**: Mark completed tasks as [x] in `claude-todo.md` and add new tasks as needed
 
-## Recent Development Notes (6/7/2025)
 
-**COMPLETED: Combat Log Scrolling Issue**:
-- ✅ Fixed parent container `overflow-hidden` that was blocking scroll behavior
-- ✅ Combat log now auto-scrolls to bottom with proper 320px scrollable window
-- ✅ Implemented inline `overflowY: 'scroll'` for consistent behavior
-
-**COMPLETED: Linting Configuration**:
-- ✅ Installed and configured ESLint with Next.js rules (.eslintrc.json)
-- ✅ Fixed React hooks rule warnings for Zustand store actions
-- ✅ Fixed Next.js Link usage in VictoryScreen component
-- ✅ `npm run lint` now works reliably for code quality checks
-
-**Phase 3 Animation Attempt - REVERTED**:
-- ❌ Attempted complex animation system caused infinite React render loop
-- ❌ Dependencies in useEffect created circular updates crashing browser
-- ✅ Emergency fix: reverted to stable working state without animations
-- 📝 Note: Animation system needs simpler approach (CSS transitions or different timing)
 
 ## Architecture Overview
 
@@ -85,95 +70,7 @@ GamePage
 
 ### Implementation Status
 
-**Implemented (Phase 1):**
-- 8x8 tactical grid with Canvas rendering
-- Unit system with 4 dwarf classes and 3 enemy types
-- Turn-based movement with range visualization
-- Basic combat (attack rolls, damage)
-- Action points system (3 per turn)
-- Victory/defeat conditions
 
-**Implemented (Phase 2 - Completed 12/6/2024):**
-- Line of Sight system with visual indicators
-- Cover system (crates provide -2 AC, walls provide -4 AC)
-- Animated dice roll display showing attack resolution
-- Range weapon visualization (circles showing max range)
-- All special abilities:
-  - Ironclad Shield Wall: Grants +2 AC to adjacent ally for 1 round
-  - Delver Ore Scanner: Reveals 3x3 area through walls (range 4)
-  - Brewmaster Combat Brew: Heals adjacent ally 2 HP
-  - Engineer Deploy Turret: Places turret unit (3 HP, 10 AC, +2 attack, 1 damage, range 4)
-- Floating damage numbers on hits
-- Status effect indicators (blue ring for Shield Wall)
-- Turret units that act on their own turn
-
-**Bug Fixes & Improvements (12/6/2024):**
-- Fixed screen flashing issues by optimizing canvas rendering
-- Fixed dice roll positioning (now appears at 1/3 from top with backdrop)
-- Improved layout with more compact UI elements
-- Implemented basic enemy AI to prevent game from freezing on enemy turns
-- Enemy AI behavior: moves toward nearest dwarf and attacks when in range
-- Fixed cover system bug: removed incorrect "adjacent cover" calculation that was giving cover bonuses even with clear line of sight
-- Cover now only applies when obstacles (crates) are directly in the line of fire between attacker and target
-- Added comprehensive combat log that shows all actions, rolls, and damage
-- Improved action counter display (now shows X/3 format with larger visual indicators)
-- Removed floating damage numbers in favor of combat log
-- Combat log shows detailed attack information: roll + bonus - penalty = total vs AC
-
-**Phase 3 - Partially Completed (6/7/2025):**
-- ✅ Enhanced victory/defeat screens with detailed battle statistics
-- ✅ Aim and Defend actions (fully implemented and working)
-- ❌ Smooth movement animations (attempted but reverted due to React issues)
-- ❌ Attack animations (attempted but reverted due to React issues)
-
-**Phase 3 - Still To Implement:**
-- Sound effects system
-- Wounded state at 0 HP (limited actions)
-- Multiple encounters system
-- Keyboard shortcuts
-- Advanced enemy AI (flanking, targeting priority, ability usage)
-- Simple animation system (CSS-based or alternative approach)
-
-## Important Implementation Details
-
-### Grid System
-- Grid coordinates use (x, y) with (0, 0) at top-left
-- Cell size is 64x64 pixels
-- Movement uses Chebyshev distance (diagonals cost 1)
-- Crates are difficult terrain (cost 2 movement)
-
-### Combat Mechanics
-- Attack roll: d20 + attackBonus vs target AC
-- Critical hit on natural 20 or beating AC by 10+
-- All damage values are fixed (no damage rolls)
-
-### Turn Order
-- Initiative: d20 + (speed / 5)
-- Units act in descending initiative order
-- Rounds increment when turn order wraps
-
-## Code Organization & Best Practices
-
-### State Management
-- **Zustand Store**: All game state is centralized in `gameStore.ts`
-- **Immer Middleware**: Enables direct state mutations for cleaner code
-- **Action Methods**: All state changes go through store methods
-
-### Performance Optimizations
-- **Canvas Rendering**: Uses refs for animations to avoid React re-renders
-- **Memoized Drawing**: Draw function only recalculates when necessary
-- **Animation Loop**: Separate requestAnimationFrame loop for smooth animations
-
-### Code Documentation
-- All major functions and components have comprehensive JSDoc comments
-- Complex algorithms (Bresenham's line, BFS pathfinding) are well-documented
-- Type definitions include descriptions of their purpose
-
-### Recent Improvements
-- **Rendering Performance**: Fixed flashing by optimizing canvas dependency tracking
-- **UI/UX**: More compact layout, better dice roll positioning
-- **Game Flow**: Added enemy AI to prevent game freezing
-- **Code Quality**: Added extensive comments throughout codebase
 
 ## Development Guidelines
 

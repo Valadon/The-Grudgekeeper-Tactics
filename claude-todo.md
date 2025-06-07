@@ -3,57 +3,57 @@
 This is a comprehensive, step-by-step task list for implementing the new tactical design system based on the grudgekeeper-tactical-design.md document.
 
 ## Phase 1: Core Stats & Class Rename
-- [ ] Update Unit type in `src/game/types/index.ts` for new class names
-- [ ] Update UnitClass enum to include Voidguard, AsteroidMiner, BrewmasterEngineer, StarRanger
-- [ ] Update DWARF_STATS in `src/game/constants/index.ts` with new HP/AC/Speed values:
-  - [ ] Voidguard: HP 10, AC 16, Speed 2
-  - [ ] AsteroidMiner: HP 6, AC 14, Speed 4  
-  - [ ] BrewmasterEngineer: HP 8, AC 15, Speed 3
-  - [ ] StarRanger: HP 7, AC 14, Speed 3
-- [ ] Update ENEMY_STATS with new enemy types:
-  - [ ] GoblinScavenger: HP 3, AC 12, Speed 3
-  - [ ] VoidHound: HP 5, AC 14, Speed 5
-  - [ ] CorruptedMiningDrone: HP 8, AC 11, Speed 2
-- [ ] Update UI labels in components to show new class names
-- [ ] Update class colors and visual styling
-- [ ] Test that all renamed classes spawn and display correctly
+- [x] Update Unit type in `src/game/types/index.ts` for new class names
+- [x] Update UnitClass enum to include Voidguard, AsteroidMiner, BrewmasterEngineer, StarRanger
+- [x] Update DWARF_STATS in `src/game/constants/index.ts` with new HP/AC/Speed values:
+  - [x] Voidguard: HP 10, AC 16, Speed 2
+  - [x] AsteroidMiner: HP 6, AC 14, Speed 4  
+  - [x] BrewmasterEngineer: HP 8, AC 15, Speed 3
+  - [x] StarRanger: HP 7, AC 14, Speed 3
+- [x] Update ENEMY_STATS with new enemy types:
+  - [x] GoblinScavenger: HP 3, AC 12, Speed 3
+  - [x] VoidHound: HP 5, AC 14, Speed 5
+  - [x] CorruptedMiningDrone: HP 8, AC 11, Speed 2
+- [x] Update UI labels in components to show new class names
+- [x] Update class colors and visual styling
+- [x] Test that all renamed classes spawn and display correctly
 
 ## Phase 2: Dice System Implementation
-- [ ] Create dice rolling utility functions in `src/game/utils/`
-  - [ ] rollDice(sides: number, count: number = 1): number[]
-  - [ ] rollDamage(diceString: string): number (e.g., "1d6", "1d8")
-  - [ ] formatDiceRoll(roll: number[], bonus: number): string
-- [ ] Update weapon damage from fixed values to dice strings in constants
-- [ ] Update damage calculations in gameStore.ts to use dice rolls
-- [ ] Enhance DiceRoll component to show damage rolls (not just attack rolls)
-- [ ] Update combat log to display damage roll details (e.g., "1d6: [4] = 4 damage")
-- [ ] Add dice roll animation for damage calculations
-- [ ] Test that all weapons use correct dice values
+- [x] Create dice rolling utility functions in `src/game/utils/`
+  - [x] rollDice(sides: number, count: number = 1): number[]
+  - [x] rollDamage(diceString: string): number (e.g., "1d6", "1d8")
+  - [x] formatDiceRoll(roll: number[], bonus: number): string
+- [x] Update weapon damage from fixed values to dice strings in constants
+- [x] Update damage calculations in gameStore.ts to use dice rolls
+- [x] Enhance DiceRoll component to show damage rolls (not just attack rolls)
+- [x] Update combat log to display damage roll details (e.g., "1d6: [4] = 4 damage")
+- [x] Add dice roll animation for damage calculations
+- [x] Test that all weapons use correct dice values
 
 ## Phase 3: New Action Types
-- [ ] Add new ActionType values to enum in types/index.ts:
-  - [ ] DROP_PRONE
-  - [ ] RAISE_SHIELD
-  - [ ] TAKE_COVER  
-  - [ ] BRACE
-  - [ ] RELOAD
-  - [ ] STEP (1-tile movement)
-  - [ ] STRIDE (full movement)
-- [ ] Implement Drop Prone action in gameStore.ts
-  - [ ] Add prone status to Unit type
-  - [ ] Apply -2 to hit with ranged, +2 to hit with melee
-- [ ] Implement Raise Shield action
-  - [ ] Check if unit has shield equipment
-  - [ ] Apply +2 AC until next turn
-- [ ] Implement Take Cover action  
-  - [ ] Check if adjacent to cover
-  - [ ] Apply +1 AC until end of turn
-- [ ] Implement Brace action
-  - [ ] Add braced status to Unit type
-  - [ ] Reduce knockback/forced movement effects
-- [ ] Update ActionBar component to show new action buttons
-- [ ] Add action validation for new action types
-- [ ] Test all new actions work correctly
+- [x] Add new ActionType values to enum in types/index.ts:
+  - [x] DROP_PRONE (dropProne)
+  - [x] RAISE_SHIELD (raiseShield)
+  - [x] TAKE_COVER (takeCover)
+  - [x] BRACE
+  - [x] RELOAD
+  - [x] STEP (1-tile movement)
+  - [x] STRIDE (full movement)
+- [x] Implement Drop Prone action in gameStore.ts
+  - [x] Add prone status to Unit type
+  - [x] Apply -2 to hit with ranged, +2 to hit with melee
+- [x] Implement Raise Shield action
+  - [x] Check if unit has shield equipment
+  - [x] Apply +2 AC until next turn
+- [x] Implement Take Cover action  
+  - [x] Check if adjacent to cover
+  - [x] Apply +1 AC until end of turn
+- [x] Implement Brace action
+  - [x] Add braced status to Unit type
+  - [x] Reduce knockback/forced movement effects
+- [x] Update ActionBar component to show new action buttons
+- [x] Add action validation for new action types
+- [x] Test all new actions work correctly
 
 ## Phase 4: Weapon & Ammo System
 - [ ] Add ammo tracking to Unit type:

@@ -30,6 +30,12 @@ export default function GameBoard() {
     useAbility,
     aimAction,
     defendAction,
+    stepUnit,
+    dropProneAction,
+    raiseShieldAction,
+    takeCoverAction,
+    braceAction,
+    reloadAction,
     hoverCell
   } = useGameStore()
   
@@ -56,11 +62,18 @@ export default function GameBoard() {
     const currentUnit = units.find(u => u.id === currentUnitId)
     if (!currentUnit) return
     
-    // Handle movement action
-    if (selectedAction === 'move' && currentUnitId) {
+    // Handle movement actions
+    if ((selectedAction === 'move' || selectedAction === 'stride') && currentUnitId) {
       const isValidMove = validMoves.some(move => move.x === x && move.y === y)
       if (isValidMove) {
         moveUnit(currentUnitId, { x, y })
+      }
+    }
+    // Handle step action (1-tile movement)
+    else if (selectedAction === 'step' && currentUnitId) {
+      const isValidMove = validMoves.some(move => move.x === x && move.y === y)
+      if (isValidMove) {
+        stepUnit(currentUnitId, { x, y })
       }
     } 
     // Handle attack action
@@ -100,6 +113,37 @@ export default function GameBoard() {
       const targetUnit = units.find(u => u.position.x === x && u.position.y === y)
       if (targetUnit && targetUnit.id === currentUnitId) {
         defendAction(currentUnitId)
+      }
+    }
+    // Handle self-targeted tactical actions
+    else if (selectedAction === 'dropProne' && currentUnitId) {
+      const targetUnit = units.find(u => u.position.x === x && u.position.y === y)
+      if (targetUnit && targetUnit.id === currentUnitId) {
+        dropProneAction(currentUnitId)
+      }
+    }
+    else if (selectedAction === 'raiseShield' && currentUnitId) {
+      const targetUnit = units.find(u => u.position.x === x && u.position.y === y)
+      if (targetUnit && targetUnit.id === currentUnitId) {
+        raiseShieldAction(currentUnitId)
+      }
+    }
+    else if (selectedAction === 'takeCover' && currentUnitId) {
+      const targetUnit = units.find(u => u.position.x === x && u.position.y === y)
+      if (targetUnit && targetUnit.id === currentUnitId) {
+        takeCoverAction(currentUnitId)
+      }
+    }
+    else if (selectedAction === 'brace' && currentUnitId) {
+      const targetUnit = units.find(u => u.position.x === x && u.position.y === y)
+      if (targetUnit && targetUnit.id === currentUnitId) {
+        braceAction(currentUnitId)
+      }
+    }
+    else if (selectedAction === 'reload' && currentUnitId) {
+      const targetUnit = units.find(u => u.position.x === x && u.position.y === y)
+      if (targetUnit && targetUnit.id === currentUnitId) {
+        reloadAction(currentUnitId)
       }
     }
   }
@@ -167,11 +211,13 @@ export default function GameBoard() {
         ctx.fillRect(pixelX, pixelY, CELL_SIZE, CELL_SIZE)
         
         // Highlight valid moves
-        if (selectedAction === 'move' || (selectedAction === 'ability' && currentUnit && (currentUnit.class === 'asteroidMiner' || currentUnit.class === 'starRanger'))) {
+        if ((selectedAction === 'move' || selectedAction === 'step' || selectedAction === 'stride') || (selectedAction === 'ability' && currentUnit && (currentUnit.class === 'asteroidMiner' || currentUnit.class === 'starRanger'))) {
           const isValidMove = validMoves.some(move => move.x === x && move.y === y)
           if (isValidMove) {
-            ctx.fillStyle = selectedAction === 'move' 
-              ? 'rgba(59, 130, 246, 0.3)'  // Blue for movement
+            ctx.fillStyle = (selectedAction === 'move' || selectedAction === 'step' || selectedAction === 'stride')
+              ? selectedAction === 'step' 
+                ? 'rgba(34, 197, 94, 0.3)'   // Green for step
+                : 'rgba(59, 130, 246, 0.3)'  // Blue for move/stride
               : currentUnit?.class === 'asteroidMiner'
               ? 'rgba(168, 85, 247, 0.3)'  // Purple for ore sense
               : 'rgba(245, 158, 11, 0.3)'  // Yellow for overwatch

@@ -9,7 +9,7 @@ export type EnemyClass = 'goblinScavenger' | 'voidHound' | 'corruptedMiningDrone
 export type TurretClass = 'engineerTurret'
 
 export type StatusEffect = {
-  type: 'shieldWall' | 'aimed' | 'defending'
+  type: 'shieldWall' | 'aimed' | 'defending' | 'prone' | 'shieldRaised' | 'takingCover' | 'braced'
   value: number
   duration: number // rounds remaining
 }
@@ -80,7 +80,7 @@ export type GameState = {
   combatLog: CombatLogEntry[]
 }
 
-export type ActionType = 'move' | 'strike' | 'aim' | 'defend' | 'ability' | 'interact'
+export type ActionType = 'move' | 'strike' | 'aim' | 'defend' | 'ability' | 'interact' | 'dropProne' | 'raiseShield' | 'takeCover' | 'brace' | 'reload' | 'step' | 'stride'
 
 export type DiceRollResult = {
   roll: number

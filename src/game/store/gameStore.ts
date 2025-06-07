@@ -27,6 +27,14 @@ interface GameStore extends GameState {
   aimAction: (unitId: string) => void
   defendAction: (unitId: string) => void
   
+  // New tactical actions
+  dropProneAction: (unitId: string) => void
+  raiseShieldAction: (unitId: string) => void
+  takeCoverAction: (unitId: string) => void
+  braceAction: (unitId: string) => void
+  reloadAction: (unitId: string) => void
+  stepUnit: (unitId: string, position: Position) => void
+  
   // Turn management
   endTurn: () => void
   processEnemyTurn: () => void
@@ -275,6 +283,29 @@ export const useGameStore = create<GameStore>()(
         } else if (action === 'aim' || action === 'defend') {
           // Aim and Defend target the unit itself
           state.validTargets = [currentUnit.id]
+        } else if (action === 'dropProne' || action === 'raiseShield' || action === 'takeCover' || action === 'brace' || action === 'reload') {
+          // Self-targeted actions
+          state.validTargets = [currentUnit.id]
+        } else if (action === 'step') {
+          // Step allows 1-tile movement (adjacent cells only)
+          const adjacent = getAdjacentPositions(currentUnit.position)
+          state.validMoves = adjacent.filter(pos => {
+            const cell = state.grid[pos.y][pos.x]
+            const occupied = state.units.some(u => 
+              u.position.x === pos.x && 
+              u.position.y === pos.y && 
+              u.hp > 0
+            )
+            return cell.type !== 'wall' && !occupied
+          })
+        } else if (action === 'stride') {
+          // Stride is full movement (same as regular move)
+          state.validMoves = getMovementRange(
+            currentUnit.position,
+            currentUnit.speed,
+            state.grid,
+            state.units
+          )
         }
       })
     },
@@ -842,6 +873,231 @@ export const useGameStore = create<GameStore>()(
         type: 'ability',
         message: `${getUnitDisplayName(unit)} takes a defensive stance`,
         details: '+2 AC until next turn'
+      })
+    },
+    
+    /**
+     * Drop Prone action - gives -2 to hit with ranged, +2 to hit with melee
+     */
+    dropProneAction: (unitId: string) => {
+      const unit = get().units.find(u => u.id === unitId)
+      if (!unit || unit.actionsRemaining <= 0) return
+      
+      set((state) => {
+        const stateUnit = state.units.find(u => u.id === unitId)
+        if (!stateUnit) return
+        
+        // Apply prone status effect
+        stateUnit.statusEffects.push({
+          type: 'prone',
+          value: 1, // Used as a flag
+          duration: -1 // Lasts until unit chooses to stand up or moves
+        })
+        
+        stateUnit.actionsRemaining -= 1
+        
+        // Clear selection
+        state.selectedAction = null
+        state.validTargets = []
+      })
+      
+      // Log the action
+      get().addLogEntry({
+        type: 'ability',
+        message: `${getUnitDisplayName(unit)} drops prone`,
+        details: '-2 to ranged attacks against, +2 to melee attacks against'
+      })
+    },
+    
+    /**
+     * Raise Shield action - gives +2 AC until next turn (requires shield)
+     */
+    raiseShieldAction: (unitId: string) => {
+      const unit = get().units.find(u => u.id === unitId)
+      if (!unit || unit.actionsRemaining <= 0) return
+      
+      // Check if unit has shield (for now, only Voidguard)
+      if (unit.class !== 'voidguard') {
+        get().addLogEntry({
+          type: 'system',
+          message: `${getUnitDisplayName(unit)} doesn't have a shield!`
+        })
+        return
+      }
+      
+      set((state) => {
+        const stateUnit = state.units.find(u => u.id === unitId)
+        if (!stateUnit) return
+        
+        // Apply shield raised status effect
+        stateUnit.statusEffects.push({
+          type: 'shieldRaised',
+          value: 2,
+          duration: 1 // Lasts until next turn
+        })
+        
+        stateUnit.actionsRemaining -= 1
+        
+        // Clear selection
+        state.selectedAction = null
+        state.validTargets = []
+      })
+      
+      // Log the action
+      get().addLogEntry({
+        type: 'ability',
+        message: `${getUnitDisplayName(unit)} raises shield`,
+        details: '+2 AC until next turn'
+      })
+    },
+    
+    /**
+     * Take Cover action - gives +1 AC if adjacent to cover
+     */
+    takeCoverAction: (unitId: string) => {
+      const unit = get().units.find(u => u.id === unitId)
+      if (!unit || unit.actionsRemaining <= 0) return
+      
+      // Check if adjacent to cover (crates or walls)
+      const adjacent = getAdjacentPositions(unit.position)
+      const grid = get().grid
+      const hasCover = adjacent.some(pos => {
+        const cell = grid[pos.y][pos.x]
+        return cell.type === 'crate' || cell.type === 'wall'
+      })
+      
+      if (!hasCover) {
+        get().addLogEntry({
+          type: 'system',
+          message: `${getUnitDisplayName(unit)} is not adjacent to cover!`
+        })
+        return
+      }
+      
+      set((state) => {
+        const stateUnit = state.units.find(u => u.id === unitId)
+        if (!stateUnit) return
+        
+        // Apply taking cover status effect
+        stateUnit.statusEffects.push({
+          type: 'takingCover',
+          value: 1,
+          duration: 1 // Lasts until end of turn
+        })
+        
+        stateUnit.actionsRemaining -= 1
+        
+        // Clear selection
+        state.selectedAction = null
+        state.validTargets = []
+      })
+      
+      // Log the action
+      get().addLogEntry({
+        type: 'ability',
+        message: `${getUnitDisplayName(unit)} takes cover`,
+        details: '+1 AC until end of turn'
+      })
+    },
+    
+    /**
+     * Brace action - reduces knockback/forced movement effects
+     */
+    braceAction: (unitId: string) => {
+      const unit = get().units.find(u => u.id === unitId)
+      if (!unit || unit.actionsRemaining <= 0) return
+      
+      set((state) => {
+        const stateUnit = state.units.find(u => u.id === unitId)
+        if (!stateUnit) return
+        
+        // Apply braced status effect
+        stateUnit.statusEffects.push({
+          type: 'braced',
+          value: 1, // Used as a flag
+          duration: 1 // Lasts until next turn
+        })
+        
+        stateUnit.actionsRemaining -= 1
+        
+        // Clear selection
+        state.selectedAction = null
+        state.validTargets = []
+      })
+      
+      // Log the action
+      get().addLogEntry({
+        type: 'ability',
+        message: `${getUnitDisplayName(unit)} braces for impact`,
+        details: 'Reduces knockback and forced movement'
+      })
+    },
+    
+    /**
+     * Reload action - restores ammo to max capacity (placeholder for Phase 4)
+     */
+    reloadAction: (unitId: string) => {
+      const unit = get().units.find(u => u.id === unitId)
+      if (!unit || unit.actionsRemaining <= 0) return
+      
+      set((state) => {
+        const stateUnit = state.units.find(u => u.id === unitId)
+        if (!stateUnit) return
+        
+        // Placeholder: In Phase 4, this will restore ammo
+        stateUnit.actionsRemaining -= 1
+        
+        // Clear selection
+        state.selectedAction = null
+        state.validTargets = []
+      })
+      
+      // Log the action
+      get().addLogEntry({
+        type: 'ability',
+        message: `${getUnitDisplayName(unit)} reloads`,
+        details: 'Weapon ready for action (ammo system coming in Phase 4)'
+      })
+    },
+    
+    /**
+     * Step Unit - moves exactly 1 tile (doesn't trigger reactions)
+     */
+    stepUnit: (unitId: string, position: Position) => {
+      const unit = get().units.find(u => u.id === unitId)
+      if (!unit || unit.actionsRemaining <= 0) return
+      
+      // Validate step is only 1 tile away
+      const distance = calculateDistance(unit.position, position)
+      if (distance !== 1) return
+      
+      // Validate move is in allowed positions
+      const isValidMove = get().validMoves.some(
+        move => move.x === position.x && move.y === position.y
+      )
+      if (!isValidMove) return
+      
+      set((state) => {
+        const stateUnit = state.units.find(u => u.id === unitId)
+        if (!stateUnit) return
+        
+        // Execute step and consume action
+        stateUnit.position = position
+        stateUnit.actionsRemaining -= 1
+        
+        // Remove prone status when moving
+        stateUnit.statusEffects = stateUnit.statusEffects.filter(e => e.type !== 'prone')
+        
+        // Clear UI state
+        state.selectedAction = null
+        state.validMoves = []
+      })
+      
+      // Log the step
+      get().addLogEntry({
+        type: 'move',
+        message: `${getUnitDisplayName(unit)} stepped to (${position.x}, ${position.y})`,
+        details: 'Careful movement - no reactions triggered'
       })
     }
   }))

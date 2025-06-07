@@ -10,7 +10,7 @@ export default function ActionBar() {
     units, 
     selectedAction, 
     selectAction, 
-    endTurn 
+    endTurn
   } = useGameStore()
   
   const currentUnit = units.find(u => u.id === currentUnitId)
@@ -22,6 +22,11 @@ export default function ActionBar() {
   const stats = currentUnit.type === 'dwarf' 
     ? DWARF_STATS[currentUnit.class as keyof typeof DWARF_STATS]
     : null
+  
+  const handleActionClick = (actionType: ActionType) => {
+    // All actions now use selectAction for consistency with the store's targeting system
+    selectAction(actionType)
+  }
   
   const actions: { type: ActionType; label: string; cost: number; disabled: boolean }[] = []
   
@@ -37,8 +42,14 @@ export default function ActionBar() {
     // Regular dwarf actions
     actions.push(
       {
-        type: 'move',
-        label: 'Move',
+        type: 'step',
+        label: 'Step (1 tile)',
+        cost: 1,
+        disabled: currentUnit.actionsRemaining < 1
+      },
+      {
+        type: 'stride',
+        label: 'Stride (full move)',
         cost: 1,
         disabled: currentUnit.actionsRemaining < 1
       },
@@ -59,8 +70,46 @@ export default function ActionBar() {
         label: 'Defend (+2 AC)',
         cost: 1,
         disabled: currentUnit.actionsRemaining < 1
+      },
+      {
+        type: 'dropProne',
+        label: 'Drop Prone',
+        cost: 1,
+        disabled: currentUnit.actionsRemaining < 1
+      },
+      {
+        type: 'takeCover',
+        label: 'Take Cover',
+        cost: 1,
+        disabled: currentUnit.actionsRemaining < 1
+      },
+      {
+        type: 'brace',
+        label: 'Brace',
+        cost: 1,
+        disabled: currentUnit.actionsRemaining < 1
       }
     )
+    
+    // Add shield-specific action for Voidguard
+    if (currentUnit.class === 'voidguard') {
+      actions.push({
+        type: 'raiseShield',
+        label: 'Raise Shield (+2 AC)',
+        cost: 1,
+        disabled: currentUnit.actionsRemaining < 1
+      })
+    }
+    
+    // Add reload action for ranged units
+    if (stats?.weaponRange) {
+      actions.push({
+        type: 'reload',
+        label: 'Reload',
+        cost: 1,
+        disabled: currentUnit.actionsRemaining < 1
+      })
+    }
     
     if (stats) {
       actions.push({
@@ -95,14 +144,14 @@ export default function ActionBar() {
         </div>
       </div>
       
-      <div className="grid grid-cols-3 gap-2 mb-3">
+      <div className="grid grid-cols-4 gap-1 mb-3">
         {actions.map(action => (
           <button
             key={action.type}
-            onClick={() => selectAction(action.type)}
+            onClick={() => handleActionClick(action.type)}
             disabled={action.disabled}
             className={`
-              px-3 py-2 rounded text-sm font-medium transition-colors
+              px-2 py-2 rounded text-xs font-medium transition-colors
               ${selectedAction === action.type
                 ? 'bg-blue-600 text-white'
                 : action.disabled
