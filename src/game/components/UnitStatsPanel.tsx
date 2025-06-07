@@ -62,6 +62,35 @@ export default function UnitStatsPanel() {
           </div>
         )}
         
+        {currentUnit.maxAmmo !== undefined && (
+          <div className="flex justify-between">
+            <span className="text-gray-400">Ammo:</span>
+            <div className="flex items-center gap-2">
+              <div className="w-20 bg-gray-700 rounded-full h-2 overflow-hidden">
+                <div 
+                  className={`h-full transition-all ${
+                    (currentUnit.currentAmmo || 0) === 0 
+                      ? 'bg-red-500' 
+                      : (currentUnit.currentAmmo || 0) <= (currentUnit.maxAmmo * 0.3)
+                      ? 'bg-orange-500'
+                      : 'bg-blue-500'
+                  }`}
+                  style={{ width: `${((currentUnit.currentAmmo || 0) / currentUnit.maxAmmo) * 100}%` }}
+                />
+              </div>
+              <span className={`text-sm ${
+                (currentUnit.currentAmmo || 0) === 0 
+                  ? 'text-red-400' 
+                  : (currentUnit.currentAmmo || 0) <= (currentUnit.maxAmmo * 0.3)
+                  ? 'text-orange-400'
+                  : 'text-white'
+              }`}>
+                {currentUnit.currentAmmo || 0}/{currentUnit.maxAmmo}
+              </span>
+            </div>
+          </div>
+        )}
+        
         <div className="pt-3 mt-3 border-t border-gray-700">
           <div className="flex justify-between items-center">
             <span className="text-gray-400">Actions:</span>

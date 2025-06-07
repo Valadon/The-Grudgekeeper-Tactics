@@ -1,7 +1,7 @@
 import { create } from 'zustand'
 import { immer } from 'zustand/middleware/immer'
 import { GameState, Unit, Position, ActionType, Cell, CellType, CombatInfo, DwarfClass, CombatLogEntry } from '../types'
-import { GRID_SIZE, STORAGE_BAY_LAYOUT, ACTIONS_PER_TURN, DWARF_STATS } from '../constants'
+import { GRID_SIZE, STORAGE_BAY_LAYOUT, ACTIONS_PER_TURN, DWARF_STATS, ENEMY_STATS } from '../constants'
 import { nanoid } from 'nanoid'
 import { calculateDistance, getLineOfSight, getMovementRange, getCoverPenalty, getAdjacentPositions } from '../utils/gridUtils'
 import { createUnit, getUnitDisplayName } from '../utils/unitUtils'
@@ -358,6 +358,11 @@ export const useGameStore = create<GameStore>()(
       
       if (!attacker || !target || attacker.actionsRemaining <= 0) return
       
+      // Check ammo for ranged attacks
+      if (attacker.rangeWeapon && attacker.currentAmmo !== undefined && attacker.currentAmmo <= 0) {
+        return // No ammo available
+      }
+      
       // Check for cover between attacker and target (-2 AC for crates, -4 for walls)
       const coverPenalty = getCoverPenalty(attacker.position, target.position, get().grid)
       
@@ -463,6 +468,11 @@ export const useGameStore = create<GameStore>()(
         
         stateAttacker.actionsRemaining -= 1
         
+        // Consume ammo for ranged attacks
+        if (stateAttacker.rangeWeapon && stateAttacker.currentAmmo !== undefined) {
+          stateAttacker.currentAmmo = Math.max(0, stateAttacker.currentAmmo - 1)
+        }
+        
         // Remove aimed status effect after use
         stateAttacker.statusEffects = stateAttacker.statusEffects.filter(e => e.type !== 'aimed')
         
@@ -490,6 +500,45 @@ export const useGameStore = create<GameStore>()(
           message: damageMsg,
           details: `${attackDetails} | Damage: ${damageDisplay}${targetAfter && targetAfter.hp <= 0 ? ' - DEFEATED!' : ''}`
         })
+        
+        // Handle splash damage for special weapons
+        const attackerStats = attacker.type === 'dwarf' 
+          ? DWARF_STATS[attacker.class as keyof typeof DWARF_STATS]
+          : attacker.type === 'enemy'
+          ? ENEMY_STATS[attacker.class as keyof typeof ENEMY_STATS]
+          : null
+          
+        if (attackerStats?.special?.includes('splash')) {
+          // Apply splash damage to all adjacent squares (including friendlies)
+          const adjacentPositions = getAdjacentPositions(target.position)
+          const currentUnits = get().units // Get current state after damage
+          
+          adjacentPositions.forEach(pos => {
+            const adjacentUnit = currentUnits.find(u => 
+              u.position.x === pos.x && u.position.y === pos.y && u.hp > 0 && u.id !== targetId
+            )
+            if (adjacentUnit) {
+              const splashDamage = 1 // Fixed 1 damage for splash
+              
+              // Apply splash damage
+              set((state) => {
+                const stateUnit = state.units.find(u => u.id === adjacentUnit.id)
+                if (stateUnit) {
+                  stateUnit.hp = Math.max(0, stateUnit.hp - splashDamage)
+                }
+              })
+              
+              // Log splash damage
+              const adjacentName = getUnitDisplayName(adjacentUnit)
+              const unitAfterSplash = get().units.find(u => u.id === adjacentUnit.id)
+              get().addLogEntry({
+                type: 'damage',
+                message: `${adjacentName} takes ${splashDamage} splash damage`,
+                details: `Chemical splash from ${attackerName}'s attack${unitAfterSplash && unitAfterSplash.hp <= 0 ? ' - DEFEATED!' : ''}`
+              })
+            }
+          })
+        }
       } else {
         const missMsg = roll === 1 ? `${attackerName} misses ${targetName} (Natural 1!)` : `${attackerName} misses ${targetName}`
         get().addLogEntry({
@@ -1034,29 +1083,39 @@ export const useGameStore = create<GameStore>()(
     },
     
     /**
-     * Reload action - restores ammo to max capacity (placeholder for Phase 4)
+     * Reload action - restores ammo to max capacity
      */
     reloadAction: (unitId: string) => {
       const unit = get().units.find(u => u.id === unitId)
       if (!unit || unit.actionsRemaining <= 0) return
       
+      // Only ranged units can reload
+      if (!unit.maxAmmo || unit.currentAmmo === undefined) {
+        return
+      }
+      
+      const ammoRestored = unit.maxAmmo - (unit.currentAmmo || 0)
+      
       set((state) => {
         const stateUnit = state.units.find(u => u.id === unitId)
         if (!stateUnit) return
         
-        // Placeholder: In Phase 4, this will restore ammo
-        stateUnit.actionsRemaining -= 1
-        
-        // Clear selection
-        state.selectedAction = null
-        state.validTargets = []
+        // Restore ammo to max capacity
+        if (stateUnit.maxAmmo !== undefined) {
+          stateUnit.currentAmmo = stateUnit.maxAmmo
+          stateUnit.actionsRemaining -= 1
+          
+          // Clear selection
+          state.selectedAction = null
+          state.validTargets = []
+        }
       })
       
-      // Log the action
+      // Log the action with ammo restored info
       get().addLogEntry({
         type: 'ability',
         message: `${getUnitDisplayName(unit)} reloads`,
-        details: 'Weapon ready for action (ammo system coming in Phase 4)'
+        details: `Restored ${ammoRestored} rounds (${unit.maxAmmo}/${unit.maxAmmo})`
       })
     },
     

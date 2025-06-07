@@ -11,6 +11,10 @@ export const DWARF_STATS: Record<DwarfClass, {
   attackBonus: number
   damage: string // Now uses dice notation (e.g., "1d8", "1d6+1")
   weaponRange?: number
+  ammoCapacity?: number // Max ammo for ranged weapons
+  weaponType: 'melee' | 'ranged'
+  damageType: string
+  special?: string[] // Special weapon properties
   abilityName: string
   abilityDescription: string
   abilityCost: number
@@ -21,6 +25,9 @@ export const DWARF_STATS: Record<DwarfClass, {
     speed: 2,
     attackBonus: 3,
     damage: '1d8', // Plasma Hammer damage
+    weaponType: 'melee',
+    damageType: 'plasma',
+    special: ['shield'],
     abilityName: 'Shield Wall',
     abilityDescription: 'While shield raised, adjacent allies get +1 AC',
     abilityCost: 1
@@ -32,6 +39,10 @@ export const DWARF_STATS: Record<DwarfClass, {
     attackBonus: 4,
     damage: '1d6', // Mining Laser damage
     weaponRange: 3,
+    ammoCapacity: 3,
+    weaponType: 'ranged',
+    damageType: 'laser',
+    special: ['precise'],
     abilityName: 'Precision Drilling',
     abilityDescription: 'Ignore cover for next Strike',
     abilityCost: 2
@@ -43,6 +54,10 @@ export const DWARF_STATS: Record<DwarfClass, {
     attackBonus: 2,
     damage: '1d4+1', // Chem-Launcher damage + 1 splash to adjacent
     weaponRange: 4,
+    ammoCapacity: 4,
+    weaponType: 'ranged',
+    damageType: 'chemical',
+    special: ['splash'],
     abilityName: 'Combat Brew',
     abilityDescription: 'Adjacent ally heals 1d6 or gains +2 damage next turn',
     abilityCost: 2
@@ -54,6 +69,10 @@ export const DWARF_STATS: Record<DwarfClass, {
     attackBonus: 3,
     damage: '1d6+1', // Mag-Rifle damage
     weaponRange: 4,
+    ammoCapacity: 6,
+    weaponType: 'ranged',
+    damageType: 'kinetic',
+    special: ['precise'],
     abilityName: 'Overwatch',
     abilityDescription: 'Reaction shot when enemy enters cone',
     abilityCost: 2
@@ -67,6 +86,10 @@ export const ENEMY_STATS: Record<EnemyClass, {
   attackBonus: number
   damage: string // Now uses dice notation
   weaponRange?: number
+  ammoCapacity?: number
+  weaponType: 'melee' | 'ranged'
+  damageType: string
+  special?: string[] // Special weapon properties
   aiType: 'ranged' | 'melee' | 'hunter'
 }> = {
   goblinScavenger: {
@@ -76,6 +99,9 @@ export const ENEMY_STATS: Record<EnemyClass, {
     attackBonus: 1,
     damage: '1d4', // Scrap Pistol damage
     weaponRange: 3,
+    ammoCapacity: 4,
+    weaponType: 'ranged',
+    damageType: 'kinetic',
     aiType: 'ranged'
   },
   voidHound: {
@@ -84,6 +110,8 @@ export const ENEMY_STATS: Record<EnemyClass, {
     speed: 5,
     attackBonus: 2,
     damage: '1d6', // Energy Bite damage
+    weaponType: 'melee',
+    damageType: 'energy',
     aiType: 'hunter'
   },
   corruptedMiningDrone: {
@@ -93,6 +121,9 @@ export const ENEMY_STATS: Record<EnemyClass, {
     attackBonus: 2,
     damage: '1d8', // Mining Beam damage (line attack)
     weaponRange: 4,
+    ammoCapacity: 3,
+    weaponType: 'ranged',
+    damageType: 'energy',
     aiType: 'ranged'
   }
 }
@@ -115,7 +146,10 @@ export const TURRET_STATS = {
     speed: 0,
     attackBonus: 2,
     damage: '1d4', // Turret damage
-    weaponRange: 4
+    weaponRange: 4,
+    ammoCapacity: 8,
+    weaponType: 'ranged' as const,
+    damageType: 'kinetic'
   }
 }
 

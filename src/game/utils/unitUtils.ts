@@ -22,6 +22,9 @@ export const createUnit = (
     ? ENEMY_STATS[unitClass as EnemyClass]
     : TURRET_STATS[unitClass as TurretClass]
   
+  // Initialize ammo for ranged weapons
+  const hasAmmo = stats.ammoCapacity !== undefined
+  
   return {
     id: nanoid(),  // Generate unique ID
     type,
@@ -34,6 +37,8 @@ export const createUnit = (
     attackBonus: stats.attackBonus,
     damage: stats.damage,
     rangeWeapon: stats.weaponRange,
+    currentAmmo: hasAmmo ? stats.ammoCapacity : undefined,
+    maxAmmo: hasAmmo ? stats.ammoCapacity : undefined,
     actionsRemaining: 0,  // Will be set when unit's turn starts
     isActive: false,       // Will be true during unit's turn
     statusEffects: []      // Empty array for buffs/debuffs

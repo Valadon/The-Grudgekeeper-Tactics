@@ -26,6 +26,8 @@ export type Unit = {
   attackBonus: number
   damage: string // Now uses dice notation (e.g., "1d6", "1d8+1")
   rangeWeapon?: number
+  currentAmmo?: number // Current ammo count (undefined for melee weapons)
+  maxAmmo?: number // Maximum ammo capacity (undefined for melee weapons)
   actionsRemaining: number
   isActive: boolean
   statusEffects: StatusEffect[]

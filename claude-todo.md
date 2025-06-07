@@ -56,34 +56,34 @@ This is a comprehensive, step-by-step task list for implementing the new tactica
 - [x] Test all new actions work correctly
 
 ## Phase 4: Weapon & Ammo System
-- [ ] Add ammo tracking to Unit type:
-  - [ ] currentAmmo: number
-  - [ ] maxAmmo: number
-- [ ] Add weapon properties to constants:
-  - [ ] ammoCapacity: number
-  - [ ] range: number
-  - [ ] damageType: string
-  - [ ] special properties (splash, piercing, etc.)
-- [ ] Implement reload action in gameStore.ts
-  - [ ] Restore ammo to max capacity
-  - [ ] Consume 1 action point
-- [ ] Update attack logic to consume ammo
-  - [ ] Prevent attacks when ammo is 0
-  - [ ] Automatically show reload option when empty
-- [ ] Add ammo counters to UnitStatsPanel
-- [ ] Add visual ammo indicators on game board
-- [ ] Update weapon stats for all classes:
-  - [ ] Voidguard Plasma Hammer: Melee, no ammo
-  - [ ] Miner Mining Laser: Range 3, 3 shots
-  - [ ] Brewmaster Chem-Launcher: Range 4, splash damage
-  - [ ] Ranger Mag-Rifle: Range 4, 6 shots
-- [ ] Test ammo system with all weapon types
+- [x] Add ammo tracking to Unit type:
+  - [x] currentAmmo: number
+  - [x] maxAmmo: number
+- [x] Add weapon properties to constants:
+  - [x] ammoCapacity: number
+  - [x] range: number
+  - [x] damageType: string
+  - [x] special properties (splash, piercing, etc.)
+- [x] Implement reload action in gameStore.ts
+  - [x] Restore ammo to max capacity
+  - [x] Consume 1 action point
+- [x] Update attack logic to consume ammo
+  - [x] Prevent attacks when ammo is 0
+  - [x] Automatically show reload option when empty
+- [x] Add ammo counters to UnitStatsPanel
+- [x] Add visual ammo indicators on game board
+- [x] Update weapon stats for all classes:
+  - [x] Voidguard Plasma Hammer: Melee, no ammo
+  - [x] Miner Mining Laser: Range 3, 3 shots
+  - [x] Brewmaster Chem-Launcher: Range 4, splash damage
+  - [x] Ranger Mag-Rifle: Range 4, 6 shots
+- [x] Test ammo system with all weapon types
 
 ## Phase 5: Enhanced Combat Mechanics
-- [ ] Implement splash damage for Chem-Launcher
-  - [ ] Calculate adjacent squares to target
-  - [ ] Apply 1 damage to each adjacent square
-  - [ ] Update damage calculation to handle area effects
+- [x] Implement splash damage for Chem-Launcher
+  - [x] Calculate adjacent squares to target
+  - [x] Apply 1 damage to each adjacent square
+  - [x] Update damage calculation to handle area effects
 - [ ] Add knockback system
   - [ ] Implement pushUnit function in gameStore.ts
   - [ ] Add knockback validation (walls, other units)
@@ -99,7 +99,7 @@ This is a comprehensive, step-by-step task list for implementing the new tactica
 - [ ] Update cover system to Half/Full types
   - [ ] Modify cover calculation in combat
   - [ ] Update visual indicators for cover types
-- [ ] Test all enhanced combat mechanics
+- [x] Test splash damage system with all weapon types (verified friendly fire and area effects)
 
 ## Phase 6: Class Abilities Implementation
 

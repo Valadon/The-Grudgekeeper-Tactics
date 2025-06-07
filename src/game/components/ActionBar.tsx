@@ -36,7 +36,8 @@ export default function ActionBar() {
       type: 'strike',
       label: 'Strike',
       cost: 1,
-      disabled: currentUnit.actionsRemaining < 1
+      disabled: currentUnit.actionsRemaining < 1 || 
+               Boolean(currentUnit.currentAmmo !== undefined && currentUnit.currentAmmo <= 0)
     })
   } else {
     // Regular dwarf actions
@@ -57,7 +58,8 @@ export default function ActionBar() {
         type: 'strike',
         label: 'Strike',
         cost: 1,
-        disabled: currentUnit.actionsRemaining < 1
+        disabled: currentUnit.actionsRemaining < 1 || 
+                 Boolean(currentUnit.rangeWeapon && currentUnit.currentAmmo !== undefined && currentUnit.currentAmmo <= 0)
       },
       {
         type: 'aim',
@@ -101,13 +103,14 @@ export default function ActionBar() {
       })
     }
     
-    // Add reload action for ranged units
-    if (stats?.weaponRange) {
+    // Add reload action for ranged units with ammo
+    if (stats?.weaponRange && currentUnit.maxAmmo !== undefined) {
       actions.push({
         type: 'reload',
-        label: 'Reload',
+        label: `Reload (${currentUnit.currentAmmo || 0}/${currentUnit.maxAmmo})`,
         cost: 1,
-        disabled: currentUnit.actionsRemaining < 1
+        disabled: currentUnit.actionsRemaining < 1 || 
+                 (currentUnit.currentAmmo || 0) >= currentUnit.maxAmmo
       })
     }
     
