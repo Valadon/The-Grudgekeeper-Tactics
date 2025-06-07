@@ -42,7 +42,9 @@ export default function VictoryScreen() {
         const damageMatch = entry.message.match(/for (\d+) damage/)
         if (damageMatch) {
           const damage = parseInt(damageMatch[1])
-          if (entry.message.includes('Goblin') || entry.message.includes('Void Warg')) {
+          if (entry.message.includes('Goblin Scavenger') || 
+              entry.message.includes('Void Hound') || 
+              entry.message.includes('Corrupted Mining Drone')) {
             stats.damageTaken += damage
           } else {
             stats.damageDealt += damage

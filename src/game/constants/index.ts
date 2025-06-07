@@ -9,7 +9,7 @@ export const DWARF_STATS: Record<DwarfClass, {
   ac: number
   speed: number
   attackBonus: number
-  damage: number
+  damage: string // Now uses dice notation (e.g., "1d8", "1d6+1")
   weaponRange?: number
   abilityName: string
   abilityDescription: string
@@ -20,7 +20,7 @@ export const DWARF_STATS: Record<DwarfClass, {
     ac: 16,
     speed: 2,
     attackBonus: 3,
-    damage: 2, // Will be updated to 1d8 in Phase 2
+    damage: '1d8', // Plasma Hammer damage
     abilityName: 'Shield Wall',
     abilityDescription: 'While shield raised, adjacent allies get +1 AC',
     abilityCost: 1
@@ -30,7 +30,7 @@ export const DWARF_STATS: Record<DwarfClass, {
     ac: 14,
     speed: 4,
     attackBonus: 4,
-    damage: 1, // Will be updated to 1d6 in Phase 2
+    damage: '1d6', // Mining Laser damage
     weaponRange: 3,
     abilityName: 'Precision Drilling',
     abilityDescription: 'Ignore cover for next Strike',
@@ -41,7 +41,7 @@ export const DWARF_STATS: Record<DwarfClass, {
     ac: 15,
     speed: 3,
     attackBonus: 2,
-    damage: 1, // Will be updated to 1d4+1 in Phase 2
+    damage: '1d4+1', // Chem-Launcher damage + 1 splash to adjacent
     weaponRange: 4,
     abilityName: 'Combat Brew',
     abilityDescription: 'Adjacent ally heals 1d6 or gains +2 damage next turn',
@@ -52,7 +52,7 @@ export const DWARF_STATS: Record<DwarfClass, {
     ac: 14,
     speed: 3,
     attackBonus: 3,
-    damage: 2, // Will be updated to 1d6+1 in Phase 2
+    damage: '1d6+1', // Mag-Rifle damage
     weaponRange: 4,
     abilityName: 'Overwatch',
     abilityDescription: 'Reaction shot when enemy enters cone',
@@ -65,7 +65,7 @@ export const ENEMY_STATS: Record<EnemyClass, {
   ac: number
   speed: number
   attackBonus: number
-  damage: number
+  damage: string // Now uses dice notation
   weaponRange?: number
   aiType: 'ranged' | 'melee' | 'hunter'
 }> = {
@@ -74,7 +74,7 @@ export const ENEMY_STATS: Record<EnemyClass, {
     ac: 12,
     speed: 3,
     attackBonus: 1,
-    damage: 1, // Will be updated to 1d4 in Phase 2
+    damage: '1d4', // Scrap Pistol damage
     weaponRange: 3,
     aiType: 'ranged'
   },
@@ -83,7 +83,7 @@ export const ENEMY_STATS: Record<EnemyClass, {
     ac: 14,
     speed: 5,
     attackBonus: 2,
-    damage: 1, // Will be updated to 1d6 in Phase 2
+    damage: '1d6', // Energy Bite damage
     aiType: 'hunter'
   },
   corruptedMiningDrone: {
@@ -91,7 +91,7 @@ export const ENEMY_STATS: Record<EnemyClass, {
     ac: 11,
     speed: 2,
     attackBonus: 2,
-    damage: 2, // Will be updated to 1d8 in Phase 2
+    damage: '1d8', // Mining Beam damage (line attack)
     weaponRange: 4,
     aiType: 'ranged'
   }
@@ -114,7 +114,7 @@ export const TURRET_STATS = {
     ac: 10,
     speed: 0,
     attackBonus: 2,
-    damage: 1,
+    damage: '1d4', // Turret damage
     weaponRange: 4
   }
 }

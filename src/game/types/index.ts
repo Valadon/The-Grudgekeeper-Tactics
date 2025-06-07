@@ -24,7 +24,7 @@ export type Unit = {
   ac: number
   speed: number
   attackBonus: number
-  damage: number
+  damage: string // Now uses dice notation (e.g., "1d6", "1d8+1")
   rangeWeapon?: number
   actionsRemaining: number
   isActive: boolean

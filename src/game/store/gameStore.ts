@@ -5,6 +5,7 @@ import { GRID_SIZE, STORAGE_BAY_LAYOUT, ACTIONS_PER_TURN, DWARF_STATS } from '..
 import { nanoid } from 'nanoid'
 import { calculateDistance, getLineOfSight, getMovementRange, getCoverPenalty, getAdjacentPositions } from '../utils/gridUtils'
 import { createUnit, getUnitDisplayName } from '../utils/unitUtils'
+import { rollD20, rollDamage, formatDiceRoll, isCriticalHit } from '../utils/diceUtils'
 
 /**
  * Main game store interface combining game state with action methods
@@ -348,10 +349,26 @@ export const useGameStore = create<GameStore>()(
       }
       
       // Combat resolution: d20 + bonus - penalty vs AC
-      const roll = Math.floor(Math.random() * 20) + 1
+      const roll = rollD20()
       const total = roll + attackBonus - coverPenalty
       const hit = total >= effectiveAC
-      const critical = roll === 20 || total >= effectiveAC + 10
+      const critical = isCriticalHit(roll, total, effectiveAC)
+      
+      // Roll damage if hit
+      let damageResult = { rolls: [0], bonus: 0, total: 0 }
+      let damageDisplay = ''
+      
+      if (hit) {
+        damageResult = rollDamage(attacker.damage)
+        // Double damage on critical hits
+        if (critical) {
+          damageResult.total *= 2
+        }
+        damageDisplay = formatDiceRoll(damageResult.rolls, damageResult.bonus, attacker.damage)
+        if (critical) {
+          damageDisplay += ` (CRIT: doubled to ${damageResult.total})`
+        }
+      }
       
       // Store combat info for display
       const combatInfo: CombatInfo = {
@@ -364,12 +381,7 @@ export const useGameStore = create<GameStore>()(
         targetAC: effectiveAC,
         hit,
         critical,
-        damage: 0
-      }
-      
-      if (hit) {
-        const damage = critical ? attacker.damage * 2 : attacker.damage
-        combatInfo.damage = damage
+        damage: damageResult.total
       }
       
       // Prepare log data before state update
@@ -445,7 +457,7 @@ export const useGameStore = create<GameStore>()(
         get().addLogEntry({
           type: 'damage',
           message: damageMsg,
-          details: `${attackDetails}${targetAfter && targetAfter.hp <= 0 ? ' - DEFEATED!' : ''}`
+          details: `${attackDetails} | Damage: ${damageDisplay}${targetAfter && targetAfter.hp <= 0 ? ' - DEFEATED!' : ''}`
         })
       } else {
         const missMsg = roll === 1 ? `${attackerName} misses ${targetName} (Natural 1!)` : `${attackerName} misses ${targetName}`
@@ -531,20 +543,24 @@ export const useGameStore = create<GameStore>()(
           }
           
         } else if (stateUser.class === 'brewmasterEngineer' && targetId) {
-          // COMBAT BREW: Heals adjacent ally for 2 HP (will be 1d6 in Phase 2)
+          // COMBAT BREW: Heals adjacent ally with 1d6 HP
           // Cannot overheal beyond max HP
           const target = state.units.find(u => u.id === targetId)
           if (!target) return
           
-          const healAmount = Math.min(2, target.maxHp - target.hp)
-          target.hp = Math.min(target.maxHp, target.hp + 2)
+          // Roll 1d6 for healing
+          const healResult = rollDamage('1d6')
+          const actualHealAmount = Math.min(healResult.total, target.maxHp - target.hp)
+          target.hp = Math.min(target.maxHp, target.hp + healResult.total)
           stateUser.actionsRemaining -= abilityCost
           abilityUsed = true
           
+          const healDisplay = formatDiceRoll(healResult.rolls, healResult.bonus, '1d6')
+          
           logEntry = {
             type: 'heal',
-            message: `${getUnitDisplayName(stateUser)} healed ${getUnitDisplayName(target)} for ${healAmount} HP`,
-            details: `${getUnitDisplayName(target)} now at ${target.hp}/${target.maxHp} HP`
+            message: `${getUnitDisplayName(stateUser)} healed ${getUnitDisplayName(target)} for ${actualHealAmount} HP`,
+            details: `Healing: ${healDisplay} | ${getUnitDisplayName(target)} now at ${target.hp}/${target.maxHp} HP`
           }
           
         } else if (stateUser.class === 'starRanger' && targetId) {
