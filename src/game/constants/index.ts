@@ -127,6 +127,7 @@ export const ENEMY_STATS: Record<EnemyClass, {
     ammoCapacity: 3,
     weaponType: 'ranged',
     damageType: 'energy',
+    special: ['line'], // Line attack hits all units in line
     aiType: 'ranged'
   }
 }

@@ -3,7 +3,7 @@ import { immer } from 'zustand/middleware/immer'
 import { GameState, Unit, Position, ActionType, Cell, CellType, CombatInfo, DwarfClass, CombatLogEntry } from '../types'
 import { GRID_SIZE, STORAGE_BAY_LAYOUT, ACTIONS_PER_TURN, DWARF_STATS, ENEMY_STATS, MAP_PENALTIES } from '../constants'
 import { nanoid } from 'nanoid'
-import { calculateDistance, getLineOfSight, getMovementRange, getCoverPenalty, getAdjacentPositions } from '../utils/gridUtils'
+import { calculateDistance, getLineOfSight, getMovementRange, getCoverPenalty, getAdjacentPositions, getLinePositions } from '../utils/gridUtils'
 import { createUnit, getUnitDisplayName } from '../utils/unitUtils'
 import { rollD20, rollDamage, formatDiceRoll, isCriticalHit } from '../utils/diceUtils'
 
@@ -34,6 +34,10 @@ interface GameStore extends GameState {
   braceAction: (unitId: string) => void
   reloadAction: (unitId: string) => void
   stepUnit: (unitId: string, position: Position) => void
+  
+  // Combat mechanics
+  pushUnit: (unitId: string, direction: Position, distance: number) => boolean
+  executeLineAttack: (attackerId: string, targetId: string) => void
   
   // Turn management
   endTurn: () => void
@@ -361,6 +365,20 @@ export const useGameStore = create<GameStore>()(
       // Check ammo for ranged attacks
       if (attacker.rangeWeapon && attacker.currentAmmo !== undefined && attacker.currentAmmo <= 0) {
         return // No ammo available
+      }
+      
+      // Get attacker stats to check for special properties
+      const attackerStats = attacker.type === 'enemy' 
+        ? ENEMY_STATS[attacker.class as keyof typeof ENEMY_STATS]
+        : DWARF_STATS[attacker.class as keyof typeof DWARF_STATS]
+      
+      // Check if this is a line attack
+      const isLineAttack = attackerStats.special?.includes('line') || false
+      
+      if (isLineAttack) {
+        // Handle line attack - hits all units in line from attacker to target
+        get().executeLineAttack(attackerId, targetId)
+        return
       }
       
       // Check for cover between attacker and target (-2 AC for crates, -4 for walls)
@@ -1170,6 +1188,245 @@ export const useGameStore = create<GameStore>()(
         type: 'move',
         message: `${getUnitDisplayName(unit)} stepped to (${position.x}, ${position.y})`,
         details: 'Careful movement - no reactions triggered'
+      })
+    },
+    
+    /**
+     * Push Unit - moves unit in specified direction for knockback effects
+     * @param unitId - ID of unit to push
+     * @param direction - Normalized direction vector (dx, dy)
+     * @param distance - Number of tiles to push
+     * @returns true if push was successful, false if blocked
+     */
+    pushUnit: (unitId: string, direction: Position, distance: number): boolean => {
+      const unit = get().units.find(u => u.id === unitId)
+      if (!unit) return false
+      
+      // Calculate target position
+      const targetX = unit.position.x + (direction.x * distance)
+      const targetY = unit.position.y + (direction.y * distance)
+      
+      // Validate target position is within grid bounds
+      if (targetX < 0 || targetX >= GRID_SIZE || targetY < 0 || targetY >= GRID_SIZE) {
+        return false // Can't push off the grid
+      }
+      
+      const targetPosition = { x: targetX, y: targetY }
+      
+      // Check if target cell is passable
+      const grid = get().grid
+      const targetCell = grid[targetY][targetX]
+      if (targetCell.type === 'wall') {
+        return false // Can't push into walls
+      }
+      
+      // Check if target position is occupied by another unit
+      const units = get().units
+      const occupyingUnit = units.find(u => 
+        u.position.x === targetX && 
+        u.position.y === targetY && 
+        u.hp > 0 && 
+        u.id !== unitId
+      )
+      
+      if (occupyingUnit) {
+        return false // Can't push into occupied space
+      }
+      
+      // Check if unit has "braced" status (reduces knockback)
+      const braced = unit.statusEffects.find(e => e.type === 'braced')
+      if (braced && distance > 1) {
+        // Braced units only get pushed 1 tile maximum
+        const reducedDistance = 1
+        const reducedTargetX = unit.position.x + (direction.x * reducedDistance)
+        const reducedTargetY = unit.position.y + (direction.y * reducedDistance)
+        
+        // Validate reduced position
+        if (reducedTargetX < 0 || reducedTargetX >= GRID_SIZE || 
+            reducedTargetY < 0 || reducedTargetY >= GRID_SIZE) {
+          return false
+        }
+        
+        const reducedTargetCell = grid[reducedTargetY][reducedTargetX]
+        if (reducedTargetCell.type === 'wall') {
+          return false
+        }
+        
+        const reducedOccupyingUnit = units.find(u => 
+          u.position.x === reducedTargetX && 
+          u.position.y === reducedTargetY && 
+          u.hp > 0 && 
+          u.id !== unitId
+        )
+        
+        if (reducedOccupyingUnit) {
+          return false
+        }
+        
+        // Perform reduced knockback
+        set((state) => {
+          const stateUnit = state.units.find(u => u.id === unitId)
+          if (stateUnit) {
+            stateUnit.position = { x: reducedTargetX, y: reducedTargetY }
+          }
+        })
+        
+        get().addLogEntry({
+          type: 'ability',
+          message: `${getUnitDisplayName(unit)} resists knockback`,
+          details: `Braced stance reduces knockback to 1 tile`
+        })
+        
+        return true
+      }
+      
+      // Perform full knockback
+      set((state) => {
+        const stateUnit = state.units.find(u => u.id === unitId)
+        if (stateUnit) {
+          stateUnit.position = targetPosition
+        }
+      })
+      
+      get().addLogEntry({
+        type: 'ability',
+        message: `${getUnitDisplayName(unit)} knocked back`,
+        details: `Pushed ${distance} tile${distance > 1 ? 's' : ''} to (${targetPosition.x}, ${targetPosition.y})`
+      })
+      
+      return true
+    },
+    
+    /**
+     * Execute Line Attack - hits all units in line from attacker to target
+     * Used for Mining Drone beam and similar piercing attacks
+     */
+    executeLineAttack: (attackerId: string, targetId: string) => {
+      const attacker = get().units.find(u => u.id === attackerId)
+      const primaryTarget = get().units.find(u => u.id === targetId)
+      
+      if (!attacker || !primaryTarget || attacker.actionsRemaining <= 0) return
+      
+      // Calculate line positions from attacker to target
+      const linePositions = getLinePositions(attacker.position, primaryTarget.position)
+      
+      // Find all units in the line
+      const unitsInLine = get().units.filter(unit => 
+        unit.hp > 0 && 
+        unit.id !== attackerId &&
+        linePositions.some(pos => pos.x === unit.position.x && pos.y === unit.position.y)
+      )
+      
+      // Calculate Multiple Attack Penalty (MAP) based on strikes this turn
+      const mapPenalty = MAP_PENALTIES[Math.min(attacker.strikesThisTurn, MAP_PENALTIES.length - 1)]
+      
+      // Get attack bonus and apply status effects
+      let attackBonus = attacker.attackBonus
+      const aimed = attacker.statusEffects.find(e => e.type === 'aimed')
+      if (aimed) {
+        attackBonus += aimed.value
+      }
+      
+      const attackTargets: Array<{unit: Unit, hit: boolean, damage: number, roll: number, total: number}> = []
+      
+      // Attack each unit in the line
+      unitsInLine.forEach(target => {
+        // Check for cover penalty (line attacks may pierce some cover)
+        const coverPenalty = getCoverPenalty(attacker.position, target.position, get().grid)
+        
+        // Apply status effects to target AC
+        let effectiveAC = target.ac
+        const shieldWall = target.statusEffects.find(e => e.type === 'shieldWall')
+        if (shieldWall) {
+          effectiveAC += shieldWall.value
+        }
+        const defending = target.statusEffects.find(e => e.type === 'defending')
+        if (defending) {
+          effectiveAC += defending.value
+        }
+        
+        // Roll attack
+        const roll = rollD20()
+        const total = roll + attackBonus - coverPenalty - Math.abs(mapPenalty)
+        const hit = total >= effectiveAC
+        const critical = isCriticalHit(roll, total, effectiveAC)
+        
+        let damage = 0
+        if (hit) {
+          const damageResult = rollDamage(attacker.damage)
+          damage = critical ? damageResult.total * 2 : damageResult.total
+        }
+        
+        attackTargets.push({ unit: target, hit, damage, roll, total })
+      })
+      
+      // Apply damage and log results
+      set((state) => {
+        const stateAttacker = state.units.find(u => u.id === attackerId)
+        if (!stateAttacker) return
+        
+        // Apply damage to all hit targets
+        attackTargets.forEach(({unit, hit, damage}) => {
+          if (hit && damage > 0) {
+            const stateTarget = state.units.find(u => u.id === unit.id)
+            if (stateTarget) {
+              stateTarget.hp = Math.max(0, stateTarget.hp - damage)
+            }
+          }
+        })
+        
+        // Consume action and ammo
+        stateAttacker.actionsRemaining -= 1
+        stateAttacker.strikesThisTurn += 1
+        
+        if (stateAttacker.rangeWeapon && stateAttacker.currentAmmo !== undefined) {
+          stateAttacker.currentAmmo = Math.max(0, stateAttacker.currentAmmo - 1)
+        }
+        
+        // Remove aimed status effect after use
+        stateAttacker.statusEffects = stateAttacker.statusEffects.filter(e => e.type !== 'aimed')
+        
+        // Clear UI state
+        state.selectedAction = null
+        state.validTargets = []
+        
+        // Check for victory/defeat
+        const dwarves = state.units.filter(u => u.type === 'dwarf')
+        const enemies = state.units.filter(u => u.type === 'enemy')
+        
+        if (enemies.every(e => e.hp <= 0)) {
+          state.phase = 'victory'
+        } else if (dwarves.every(d => d.hp <= 0)) {
+          state.phase = 'defeat'
+        }
+      })
+      
+      // Log the line attack results
+      const attackerName = getUnitDisplayName(attacker)
+      const hitTargets = attackTargets.filter(t => t.hit)
+      const totalDamage = hitTargets.reduce((sum, t) => sum + t.damage, 0)
+      
+      get().addLogEntry({
+        type: 'damage',
+        message: `${attackerName} fires a beam attack hitting ${hitTargets.length} target${hitTargets.length !== 1 ? 's' : ''}`,
+        details: `Total damage: ${totalDamage} | Targets: ${hitTargets.map(t => getUnitDisplayName(t.unit)).join(', ')}`
+      })
+      
+      // Log individual hits for detailed tracking
+      attackTargets.forEach(({unit, hit, damage, roll, total}) => {
+        if (hit) {
+          get().addLogEntry({
+            type: 'damage',
+            message: `${getUnitDisplayName(unit)} takes ${damage} damage`,
+            details: `d20(${roll}) + ${attackBonus}${mapPenalty < 0 ? ` - ${Math.abs(mapPenalty)} (MAP)` : ''} = ${total} vs AC ${unit.ac}`
+          })
+        } else {
+          get().addLogEntry({
+            type: 'miss',
+            message: `${getUnitDisplayName(unit)} avoids the beam`,
+            details: `d20(${roll}) + ${attackBonus}${mapPenalty < 0 ? ` - ${Math.abs(mapPenalty)} (MAP)` : ''} = ${total} vs AC ${unit.ac}`
+          })
+        }
       })
     }
   }))

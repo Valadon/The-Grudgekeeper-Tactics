@@ -14,6 +14,13 @@ export type StatusEffect = {
   duration: number // rounds remaining
 }
 
+export type ReactionTrigger = {
+  type: 'movement' | 'attack' | 'ability' | 'damage'
+  condition: string // Description of when this triggers
+  active: boolean // Whether this reaction is currently active
+  usesRemaining: number // How many times this can trigger (0 = unlimited)
+}
+
 export type Unit = {
   id: string
   type: UnitType
@@ -32,6 +39,7 @@ export type Unit = {
   strikesThisTurn: number // Track attacks for Multiple Attack Penalty (MAP)
   isActive: boolean
   statusEffects: StatusEffect[]
+  reactions: ReactionTrigger[] // Active reaction triggers
   ownerId?: string // For turrets to track their creator
   // Animation properties
   animationPosition?: Position // Current animation position

@@ -42,7 +42,8 @@ export const createUnit = (
     actionsRemaining: 0,  // Will be set when unit's turn starts
     strikesThisTurn: 0,   // Track attacks for Multiple Attack Penalty (MAP)
     isActive: false,       // Will be true during unit's turn
-    statusEffects: []      // Empty array for buffs/debuffs
+    statusEffects: [],     // Empty array for buffs/debuffs
+    reactions: []          // Empty array for reaction triggers
   }
 }
 

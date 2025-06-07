@@ -84,20 +84,20 @@ This is a comprehensive, step-by-step task list for implementing the new tactica
   - [x] Calculate adjacent squares to target
   - [x] Apply 1 damage to each adjacent square
   - [x] Update damage calculation to handle area effects
-- [ ] Add knockback system
-  - [ ] Implement pushUnit function in gameStore.ts
-  - [ ] Add knockback validation (walls, other units)
-  - [ ] Apply knockback to relevant abilities
-- [ ] Implement line attacks (for Mining Drone beam)
-  - [ ] Calculate line of tiles from attacker to target
-  - [ ] Apply damage to all units in line
+- [x] Add knockback system
+  - [x] Implement pushUnit function in gameStore.ts
+  - [x] Add knockback validation (walls, other units)
+  - [ ] Apply knockback to relevant abilities (Graviton Slam, etc)
+- [x] Implement line attacks (for Mining Drone beam)
+  - [x] Calculate line of tiles from attacker to target
+  - [x] Apply damage to all units in line
   - [ ] Show line attack visualization
-- [ ] Add reaction system framework
-  - [ ] Add reaction triggers to Unit type
+- [x] Add reaction system framework (basic structure)
+  - [x] Add reaction triggers to Unit type
   - [ ] Implement basic reaction resolution
   - [ ] Start with Void Anchor ability
-- [ ] Update cover system to Half/Full types
-  - [ ] Modify cover calculation in combat
+- [x] Update cover system to Half/Full types
+  - [x] Modify cover calculation in combat (getCoverInfo function)
   - [ ] Update visual indicators for cover types
 - [x] Test splash damage system with all weapon types (verified friendly fire and area effects)
 
