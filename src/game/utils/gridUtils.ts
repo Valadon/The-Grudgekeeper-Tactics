@@ -1,4 +1,4 @@
-import { Position, Cell, Unit } from '../types'
+import { Position, Cell, Unit, CoverInfo, CoverType } from '../types'
 import { GRID_SIZE } from '../constants'
 
 /**
@@ -51,15 +51,11 @@ export const getLineOfSight = (from: Position, to: Position, grid: Cell[][]): bo
 }
 
 /**
- * Cover types for enhanced tactical combat
- */
-export type CoverType = 'none' | 'half' | 'full'
-
-/**
- * Calculates cover type between attacker and target
+ * @deprecated Use getCover instead
+ * Calculates cover type between attacker and target 
  * @returns Cover type and penalty value
  */
-export const getCoverInfo = (from: Position, to: Position, grid: Cell[][]): {type: CoverType, penalty: number} => {
+export const getCoverInfo = (from: Position, to: Position, grid: Cell[][]): {type: 'none' | 'half' | 'full', penalty: number} => {
   // Check for intervening obstacles in line of fire
   const dx = Math.abs(to.x - from.x)
   const dy = Math.abs(to.y - from.y)
@@ -288,4 +284,259 @@ export const getLinePositions = (from: Position, to: Position): Position[] => {
   }
   
   return positions
+}
+
+// =============================================================================
+// NEW PATHFINDER 2E COVER & LINE OF SIGHT SYSTEM
+// =============================================================================
+
+/**
+ * Gets the four corners of a grid position for LoS checking
+ * Returns fractional positions slightly inside the square to avoid edge cases
+ */
+export const getCorners = (position: Position): Position[] => {
+  const offset = 0.01  // Slight inset to avoid exact edge cases
+  return [
+    { x: position.x + offset, y: position.y + offset },           // Top-left
+    { x: position.x + 1 - offset, y: position.y + offset },       // Top-right
+    { x: position.x + offset, y: position.y + 1 - offset },       // Bottom-left
+    { x: position.x + 1 - offset, y: position.y + 1 - offset }    // Bottom-right
+  ]
+}
+
+/**
+ * Traces a line between two fractional positions and returns all grid cells it passes through
+ * Uses DDA (Digital Differential Analyzer) for robust corner handling
+ */
+export const traceLineFractional = (from: Position, to: Position): Position[] => {
+  const cells: Set<string> = new Set()
+  
+  // Use high-resolution sampling to catch corner cases
+  const dx = to.x - from.x
+  const dy = to.y - from.y
+  const distance = Math.sqrt(dx * dx + dy * dy)
+  const steps = Math.ceil(distance * 8)  // Very high resolution to catch corners
+  
+  for (let i = 0; i <= steps; i++) {
+    const t = i / steps
+    const x = from.x + dx * t
+    const y = from.y + dy * t
+    
+    // Convert to grid coordinates - use rounding for better corner detection
+    const gridX = Math.round(x - 0.5) // Shift by 0.5 to handle corners better
+    const gridY = Math.round(y - 0.5)
+    
+    // Validate bounds and add to set
+    if (gridX >= 0 && gridX < GRID_SIZE && gridY >= 0 && gridY < GRID_SIZE) {
+      cells.add(`${gridX},${gridY}`)
+    }
+    
+    // Also check the floor-based cell to catch edge cases
+    const floorX = Math.floor(x)
+    const floorY = Math.floor(y)
+    if (floorX >= 0 && floorX < GRID_SIZE && floorY >= 0 && floorY < GRID_SIZE) {
+      cells.add(`${floorX},${floorY}`)
+    }
+  }
+  
+  // Convert back to position array
+  return Array.from(cells).map(key => {
+    const [x, y] = key.split(',').map(Number)
+    return { x, y }
+  })
+}
+
+/**
+ * Checks if a line between two fractional positions is blocked by walls
+ * Returns true if the line is clear (no walls in the way)
+ */
+export const isLineClear = (from: Position, to: Position, grid: Cell[][]): boolean => {
+  const cellsInLine = traceLineFractional(from, to)
+  
+  for (const cell of cellsInLine) {
+    // Skip start and end positions
+    const isStart = Math.floor(from.x) === cell.x && Math.floor(from.y) === cell.y
+    const isEnd = Math.floor(to.x) === cell.x && Math.floor(to.y) === cell.y
+    
+    if (!isStart && !isEnd && grid[cell.y][cell.x].type === 'wall') {
+      return false
+    }
+  }
+  
+  return true
+}
+
+/**
+ * NEW LINE OF SIGHT: Corner-to-corner checking
+ * Returns true if ANY corner of the attacker can see ANY corner of the target
+ * Only walls block line of sight
+ */
+export const hasLineOfSight = (from: Position, to: Position, grid: Cell[][]): boolean => {
+  console.log('=== hasLineOfSight called ===')
+  console.log('From:', from, 'To:', to)
+  
+  const fromCorners = getCorners(from)
+  const toCorners = getCorners(to)
+  
+  console.log('From corners:', fromCorners)
+  console.log('To corners:', toCorners)
+  
+  // Check every combination of corners
+  for (let i = 0; i < fromCorners.length; i++) {
+    for (let j = 0; j < toCorners.length; j++) {
+      const fromCorner = fromCorners[i]
+      const toCorner = toCorners[j]
+      const isLlear = isLineClear(fromCorner, toCorner, grid)
+      
+      console.log(`Corner ${i}-${j}: (${fromCorner.x.toFixed(2)}, ${fromCorner.y.toFixed(2)}) to (${toCorner.x.toFixed(2)}, ${toCorner.y.toFixed(2)}) = ${isLlear}`)
+      
+      if (isLlear) {
+        console.log('Line of sight found via corner-to-corner')
+        return true  // Found at least one clear line
+      }
+    }
+  }
+  
+  console.log('No line of sight found')
+  return false  // No clear lines found
+}
+
+/**
+ * Gets the center point of a grid position
+ */
+export const getCenter = (position: Position): Position => {
+  return { x: position.x + 0.5, y: position.y + 0.5 }
+}
+
+/**
+ * ENHANCED COVER SYSTEM: Center-to-center checking with adjacency rules
+ * - Terrain cover (crate/door) uses adjacency rules
+ * - Creature cover always applies (creatures move)
+ * - Take Cover action handled separately
+ */
+export const getCover = (attacker: Position, target: Position, grid: Cell[][], units: Unit[]): CoverInfo => {
+  const fromCenter = getCenter(attacker)
+  const toCenter = getCenter(target)
+  
+  console.log('=== getCover called ===')
+  console.log('Attacker:', attacker, 'Target:', target)
+  console.log('From center:', fromCenter, 'To center:', toCenter)
+  
+  const cellsInLine = traceLineFractional(fromCenter, toCenter)
+  console.log('Cells in line:', cellsInLine)
+  
+  let maxCover: CoverInfo = { type: 'none', bonus: 0, source: 'none' }
+  
+  // Check terrain cover with adjacency rules
+  for (const cell of cellsInLine) {
+    // Skip start and end positions
+    const isStart = cell.x === attacker.x && cell.y === attacker.y
+    const isEnd = cell.x === target.x && cell.y === target.y
+    
+    console.log('Checking cell:', cell, 'isStart:', isStart, 'isEnd:', isEnd)
+    
+    if (!isStart && !isEnd) {
+      const gridCell = grid[cell.y][cell.x]
+      console.log('Grid cell at', cell, ':', gridCell.type)
+      
+      if (gridCell.type === 'crate' || gridCell.type === 'door') {
+        // Check adjacency for terrain cover
+        const attackerAdjacent = calculateDistance(attacker, cell) === 1
+        const targetAdjacent = calculateDistance(target, cell) === 1
+        
+        // Debug terrain cover detection
+        console.log('Terrain cover check:', {
+          cell,
+          gridCellType: gridCell.type,
+          attackerAdjacent,
+          targetAdjacent,
+          attacker,
+          target
+        })
+        
+        // Apply adjacency rules:
+        if (attackerAdjacent && !targetAdjacent) {
+          // Attacker shooting around cover - target gets no benefit from this cover
+          console.log('Cover denied: attacker adjacent, target not adjacent')
+          continue
+        } else {
+          // Cover applies normally:
+          // - Attacker NOT adjacent (shooting through cover)
+          // - Target also adjacent (both using same cover)
+          // - Both adjacent to same cover (mutual protection)
+          console.log('Terrain cover applies:', gridCell.type)
+          if (maxCover.bonus < 2) {
+            maxCover = { type: 'standard', bonus: 2, source: 'terrain' }
+          }
+        }
+      } else if (gridCell.type === 'wall') {
+        // Walls provide Greater Cover (+4 AC) when center-to-center line passes through them
+        // but don't block attacks if corner-to-corner LoS exists
+        console.log('Wall cover detected at:', cell)
+        if (maxCover.bonus < 4) {
+          maxCover = { type: 'greater', bonus: 4, source: 'terrain' }
+        }
+      }
+    }
+  }
+  
+  // Check creature cover (always applies - creatures move and are unpredictable)
+  // Find attacker and target units to exclude them
+  const attackerUnit = units.find(u => u.position.x === attacker.x && u.position.y === attacker.y)
+  const targetUnit = units.find(u => u.position.x === target.x && u.position.y === target.y)
+  
+  for (const cell of cellsInLine) {
+    // Skip start and end positions
+    const isStart = cell.x === attacker.x && cell.y === attacker.y
+    const isEnd = cell.x === target.x && cell.y === target.y
+    
+    if (!isStart && !isEnd) {
+      // Check if there's a unit in this cell (excluding attacker and target)
+      const unitInCell = units.find(u => 
+        u.position.x === cell.x && 
+        u.position.y === cell.y && 
+        u.hp > 0 &&
+        u.id !== attackerUnit?.id &&
+        u.id !== targetUnit?.id
+      )
+      
+      if (unitInCell) {
+        // Lesser Cover from creature (always applies, no adjacency rules)
+        if (maxCover.bonus < 1) {
+          maxCover = { type: 'lesser', bonus: 1, source: 'creature' }
+        }
+      }
+    }
+  }
+  
+  return maxCover
+}
+
+/**
+ * Enhanced cover calculation that includes Take Cover status effects
+ * This should be used in combat calculations
+ */
+export const getCoverWithEffects = (attacker: Position, target: Position, grid: Cell[][], units: Unit[], targetUnit?: Unit): CoverInfo => {
+  let baseCover = getCover(attacker, target, grid, units)
+  
+  // Check if target has Take Cover status effect
+  if (targetUnit) {
+    const takingCoverEnhanced = targetUnit.statusEffects.find(e => e.type === 'takingCoverEnhanced')
+    if (takingCoverEnhanced) {
+      // Take Cover upgrades Standard to Greater (+4 total)
+      if (baseCover.type === 'standard') {
+        return { type: 'greater', bonus: 4, source: 'action' }
+      }
+      // If only Lesser cover, Take Cover gives Standard
+      else if (baseCover.type === 'lesser') {
+        return { type: 'standard', bonus: 2, source: 'action' }
+      }
+      // If no cover, Take Cover gives Standard
+      else if (baseCover.type === 'none') {
+        return { type: 'standard', bonus: 2, source: 'action' }
+      }
+    }
+  }
+  
+  return baseCover
 }

@@ -3,7 +3,7 @@ import { immer } from 'zustand/middleware/immer'
 import { GameState, Unit, Position, ActionType, Cell, CellType, CombatInfo, DwarfClass, CombatLogEntry } from '../types'
 import { GRID_SIZE, STORAGE_BAY_LAYOUT, ACTIONS_PER_TURN, DWARF_STATS, ENEMY_STATS, MAP_PENALTIES } from '../constants'
 import { nanoid } from 'nanoid'
-import { calculateDistance, getLineOfSight, getMovementRange, getCoverPenalty, getAdjacentPositions, getLinePositions } from '../utils/gridUtils'
+import { calculateDistance, getLineOfSight, getMovementRange, getCoverPenalty, getAdjacentPositions, getLinePositions, hasLineOfSight, getCoverWithEffects } from '../utils/gridUtils'
 import { createUnit, getUnitDisplayName } from '../utils/unitUtils'
 import { rollD20, rollDamage, formatDiceRoll, isCriticalHit } from '../utils/diceUtils'
 
@@ -31,6 +31,7 @@ interface GameStore extends GameState {
   dropProneAction: (unitId: string) => void
   raiseShieldAction: (unitId: string) => void
   takeCoverAction: (unitId: string) => void
+  takeCoverEnhancedAction: (unitId: string) => void
   braceAction: (unitId: string) => void
   reloadAction: (unitId: string) => void
   stepUnit: (unitId: string, position: Position) => void
@@ -42,6 +43,12 @@ interface GameStore extends GameState {
   // Turn management
   endTurn: () => void
   processEnemyTurn: () => void
+  
+  // Class abilities
+  shieldWallAction: (unitId: string) => void
+  gravitonSlamAction: (unitId: string) => void
+  precisionDrillingAction: (unitId: string) => void
+  combatBrewAction: (unitId: string, targetId: string, choice: 'heal' | 'damage') => void
   
   // UI interactions
   hoverCell: (position: Position | null) => void
@@ -226,7 +233,7 @@ export const useGameStore = create<GameStore>()(
             .filter(enemy => {
               const distance = calculateDistance(currentUnit.position, enemy.position)
               const maxRange = currentUnit.rangeWeapon || 1
-              return distance <= maxRange && getLineOfSight(
+              return distance <= maxRange && hasLineOfSight(
                 currentUnit.position,
                 enemy.position,
                 state.grid
@@ -276,7 +283,7 @@ export const useGameStore = create<GameStore>()(
               .filter(enemy => {
                 const distance = calculateDistance(currentUnit.position, enemy.position)
                 const maxRange = currentUnit.rangeWeapon || 1
-                return distance <= maxRange && getLineOfSight(
+                return distance <= maxRange && hasLineOfSight(
                   currentUnit.position,
                   enemy.position,
                   state.grid
@@ -287,9 +294,22 @@ export const useGameStore = create<GameStore>()(
         } else if (action === 'aim' || action === 'defend') {
           // Aim and Defend target the unit itself
           state.validTargets = [currentUnit.id]
-        } else if (action === 'dropProne' || action === 'raiseShield' || action === 'takeCover' || action === 'brace' || action === 'reload') {
+        } else if (action === 'dropProne' || action === 'raiseShield' || action === 'takeCover' || action === 'brace' || action === 'reload' || action === 'takeCoverEnhanced') {
           // Self-targeted actions
           state.validTargets = [currentUnit.id]
+        } else if (action === 'shieldWall' || action === 'gravitonSlam' || action === 'precisionDrilling') {
+          // Self-targeted abilities that don't require target selection
+          state.validTargets = [currentUnit.id]
+        } else if (action === 'combatBrew') {
+          // Combat Brew targets adjacent allies
+          const allies = state.units.filter(u => 
+            u.type === currentUnit.type && 
+            u.id !== currentUnit.id && 
+            u.hp > 0
+          )
+          state.validTargets = allies
+            .filter(ally => calculateDistance(currentUnit.position, ally.position) === 1)
+            .map(ally => ally.id)
         } else if (action === 'step') {
           // Step allows 1-tile movement (adjacent cells only)
           const adjacent = getAdjacentPositions(currentUnit.position)
@@ -381,14 +401,40 @@ export const useGameStore = create<GameStore>()(
         return
       }
       
-      // Check for cover between attacker and target (-2 AC for crates, -4 for walls)
-      const coverPenalty = getCoverPenalty(attacker.position, target.position, get().grid)
+      // NEW SYSTEM: Check line of sight first
+      if (!hasLineOfSight(attacker.position, target.position, get().grid)) {
+        // No line of sight - cannot attack
+        get().addLogEntry({
+          type: 'system',
+          message: `${getUnitDisplayName(attacker)} cannot see ${getUnitDisplayName(target)}`,
+          details: 'No line of sight - attack blocked'
+        })
+        return
+      }
+      
+      // NEW SYSTEM: Calculate cover bonus (Pathfinder 2e style)
+      let coverBonus = 0
+      const coverInfo = getCoverWithEffects(attacker.position, target.position, get().grid, get().units, target)
+      
+      // Debug creature cover specifically
+      if (coverInfo.source === 'creature') {
+        console.log('Creature cover detected:', coverInfo, 'between', getUnitDisplayName(attacker), 'and', getUnitDisplayName(target))
+      }
+      
+      // Check for precision drilling - ignores cover
+      const precisionDrilling = attacker.statusEffects.find(e => e.type === 'precisionDrilling')
+      if (precisionDrilling) {
+        coverBonus = 0
+      } else {
+        coverBonus = coverInfo.bonus
+      }
       
       // Calculate Multiple Attack Penalty (MAP) based on strikes this turn
       const mapPenalty = MAP_PENALTIES[Math.min(attacker.strikesThisTurn, MAP_PENALTIES.length - 1)]
       
-      // Apply status effects to AC (e.g., Shield Wall, Defending)
-      let effectiveAC = target.ac
+      // Apply status effects to AC (e.g., Shield Wall, Defending, Shield Raised)
+      let effectiveAC = target.ac + coverBonus  // Add cover bonus to AC
+      
       const shieldWall = target.statusEffects.find(e => e.type === 'shieldWall')
       if (shieldWall) {
         effectiveAC += shieldWall.value
@@ -397,6 +443,11 @@ export const useGameStore = create<GameStore>()(
       if (defending) {
         effectiveAC += defending.value
       }
+      const shieldRaised = target.statusEffects.find(e => e.type === 'shieldRaised')
+      if (shieldRaised) {
+        effectiveAC += shieldRaised.value
+      }
+      // Note: takingCover is now handled in getCoverWithEffects
       
       // Apply status effects to attack bonus (e.g., Aimed)
       let attackBonus = attacker.attackBonus
@@ -405,9 +456,9 @@ export const useGameStore = create<GameStore>()(
         attackBonus += aimed.value
       }
       
-      // Combat resolution: d20 + bonus - cover penalty - MAP penalty vs AC
+      // Combat resolution: d20 + bonus - MAP penalty vs AC (cover is now included in AC)
       const roll = rollD20()
-      const total = roll + attackBonus - coverPenalty - Math.abs(mapPenalty)
+      const total = roll + attackBonus - Math.abs(mapPenalty)
       const hit = total >= effectiveAC
       const critical = isCriticalHit(roll, total, effectiveAC)
       
@@ -417,11 +468,22 @@ export const useGameStore = create<GameStore>()(
       
       if (hit) {
         damageResult = rollDamage(attacker.damage)
+        
+        // Apply combat brew damage bonus
+        const combatBrewDamage = attacker.statusEffects.find(e => e.type === 'combatBrewDamage')
+        if (combatBrewDamage) {
+          damageResult.total += combatBrewDamage.value
+        }
+        
         // Double damage on critical hits
         if (critical) {
           damageResult.total *= 2
         }
+        
         damageDisplay = formatDiceRoll(damageResult.rolls, damageResult.bonus, attacker.damage)
+        if (combatBrewDamage) {
+          damageDisplay += ` + ${combatBrewDamage.value} (combat brew)`
+        }
         if (critical) {
           damageDisplay += ` (CRIT: doubled to ${damageResult.total})`
         }
@@ -433,7 +495,7 @@ export const useGameStore = create<GameStore>()(
         targetId,
         roll,
         bonus: attackBonus,
-        coverPenalty,
+        coverPenalty: coverBonus,  // Now represents cover bonus to AC
         mapPenalty,
         total,
         targetAC: effectiveAC,
@@ -452,15 +514,32 @@ export const useGameStore = create<GameStore>()(
         attackDetails += ` + ${aimed.value} (aimed)`
       }
       
-      if (coverPenalty > 0) {
-        attackDetails += ` - ${coverPenalty} (cover)`
-      }
-      
       if (mapPenalty < 0) {
         attackDetails += ` - ${Math.abs(mapPenalty)} (MAP)`
       }
       
-      attackDetails += ` = ${total} vs AC ${effectiveAC}`
+      attackDetails += ` = ${total}`
+      
+      // Show AC breakdown with cover
+      let acBreakdown = `AC ${target.ac}`
+      if (coverBonus > 0) {
+        const coverTypeDisplay = coverInfo.type === 'lesser' ? 'Lesser' : 
+                               coverInfo.type === 'standard' ? 'Standard' : 
+                               coverInfo.type === 'greater' ? 'Greater' : ''
+        acBreakdown += ` + ${coverBonus} (${coverTypeDisplay} Cover)`
+      }
+      
+      // Add other AC bonuses to breakdown
+      let otherBonuses = 0
+      if (shieldWall) otherBonuses += shieldWall.value
+      if (defending) otherBonuses += defending.value 
+      if (shieldRaised) otherBonuses += shieldRaised.value
+      
+      if (otherBonuses > 0) {
+        acBreakdown += ` + ${otherBonuses} (effects)`
+      }
+      
+      attackDetails += ` vs ${acBreakdown} = ${effectiveAC}`
       
       // Update state
       set((state) => {
@@ -503,8 +582,12 @@ export const useGameStore = create<GameStore>()(
           stateAttacker.currentAmmo = Math.max(0, stateAttacker.currentAmmo - 1)
         }
         
-        // Remove aimed status effect after use
-        stateAttacker.statusEffects = stateAttacker.statusEffects.filter(e => e.type !== 'aimed')
+        // Remove consumed status effects after use
+        stateAttacker.statusEffects = stateAttacker.statusEffects.filter(e => 
+          e.type !== 'aimed' && 
+          e.type !== 'precisionDrilling' && 
+          e.type !== 'combatBrewDamage'
+        )
         
         // Clear selection
         state.selectedAction = null
@@ -1383,8 +1466,12 @@ export const useGameStore = create<GameStore>()(
           stateAttacker.currentAmmo = Math.max(0, stateAttacker.currentAmmo - 1)
         }
         
-        // Remove aimed status effect after use
-        stateAttacker.statusEffects = stateAttacker.statusEffects.filter(e => e.type !== 'aimed')
+        // Remove consumed status effects after use
+        stateAttacker.statusEffects = stateAttacker.statusEffects.filter(e => 
+          e.type !== 'aimed' && 
+          e.type !== 'precisionDrilling' && 
+          e.type !== 'combatBrewDamage'
+        )
         
         // Clear UI state
         state.selectedAction = null
@@ -1427,6 +1514,319 @@ export const useGameStore = create<GameStore>()(
             details: `d20(${roll}) + ${attackBonus}${mapPenalty < 0 ? ` - ${Math.abs(mapPenalty)} (MAP)` : ''} = ${total} vs AC ${unit.ac}`
           })
         }
+      })
+    },
+    
+    /**
+     * Voidguard Shield Wall: Adjacent allies get +1 AC while shield is raised
+     */
+    shieldWallAction: (unitId: string) => {
+      const unit = get().units.find(u => u.id === unitId)
+      if (!unit || unit.actionsRemaining <= 0 || unit.class !== 'voidguard') return
+      
+      // Check if shield is raised
+      const hasShieldRaised = unit.statusEffects.some(e => e.type === 'shieldRaised')
+      if (!hasShieldRaised) {
+        // Log warning
+        get().addLogEntry({
+          type: 'system',
+          message: 'Shield Wall requires Raise Shield to be active first',
+          details: 'Use Raise Shield before activating Shield Wall'
+        })
+        return
+      }
+      
+      // Find adjacent allied units
+      const adjacentAllies = get().units.filter(ally => {
+        if (ally.id === unitId || ally.type !== 'dwarf' || ally.hp <= 0) return false
+        const distance = calculateDistance(unit.position, ally.position)
+        return distance === 1
+      })
+      
+      if (adjacentAllies.length === 0) {
+        get().addLogEntry({
+          type: 'system',
+          message: 'No adjacent allies to benefit from Shield Wall',
+          details: 'Must have allies within 1 tile'
+        })
+        return
+      }
+      
+      set((state) => {
+        const stateUnit = state.units.find(u => u.id === unitId)
+        if (!stateUnit) return
+        
+        // Apply shield wall bonus to all adjacent allies
+        adjacentAllies.forEach(ally => {
+          const stateAlly = state.units.find(u => u.id === ally.id)
+          if (stateAlly) {
+            // Remove any existing shield wall effect first
+            stateAlly.statusEffects = stateAlly.statusEffects.filter(e => e.type !== 'shieldWall')
+            // Add new shield wall effect
+            stateAlly.statusEffects.push({
+              type: 'shieldWall',
+              value: 1,
+              duration: 1 // Lasts until next turn
+            })
+          }
+        })
+        
+        stateUnit.actionsRemaining -= 1
+        
+        // Clear selection
+        state.selectedAction = null
+        state.validTargets = []
+      })
+      
+      // Log the action
+      get().addLogEntry({
+        type: 'ability',
+        message: `${getUnitDisplayName(unit)} activates Shield Wall`,
+        details: `${adjacentAllies.length} allied dwarf${adjacentAllies.length !== 1 ? 'ves' : ''} gain +1 AC`
+      })
+    },
+    
+    /**
+     * Voidguard Graviton Slam: Strike all adjacent enemies, knock back 1 tile
+     */
+    gravitonSlamAction: (unitId: string) => {
+      const unit = get().units.find(u => u.id === unitId)
+      if (!unit || unit.actionsRemaining < 2 || unit.class !== 'voidguard') return
+      
+      // Find all adjacent enemies
+      const adjacentEnemies = get().units.filter(enemy => {
+        if (enemy.type === 'dwarf' || enemy.hp <= 0) return false
+        const distance = calculateDistance(unit.position, enemy.position)
+        return distance === 1
+      })
+      
+      if (adjacentEnemies.length === 0) {
+        get().addLogEntry({
+          type: 'system',
+          message: 'No adjacent enemies to strike with Graviton Slam',
+          details: 'Must have enemies within 1 tile'
+        })
+        return
+      }
+      
+      // Execute attacks on all adjacent enemies
+      adjacentEnemies.forEach(enemy => {
+        // Calculate attack roll
+        const roll = rollD20()
+        const total = roll + unit.attackBonus
+        const hit = total >= enemy.ac
+        const critical = isCriticalHit(roll, total, enemy.ac)
+        
+        let damage = 0
+        let damageDisplay = ''
+        
+        if (hit) {
+          const damageResult = rollDamage(unit.damage)
+          damage = critical ? damageResult.total * 2 : damageResult.total
+          damageDisplay = formatDiceRoll(damageResult.rolls, damageResult.bonus, unit.damage)
+          if (critical) {
+            damageDisplay += ` (CRIT: doubled to ${damage})`
+          }
+        }
+        
+        // Apply damage and knockback
+        set((state) => {
+          const stateEnemy = state.units.find(u => u.id === enemy.id)
+          if (!stateEnemy) return
+          
+          if (hit) {
+            stateEnemy.hp = Math.max(0, stateEnemy.hp - damage)
+            
+            // Apply knockback (push enemy away from attacker)
+            const dx = stateEnemy.position.x - unit.position.x
+            const dy = stateEnemy.position.y - unit.position.y
+            const direction = { x: Math.sign(dx), y: Math.sign(dy) }
+            get().pushUnit(stateEnemy.id, direction, 1)
+          }
+        })
+        
+        // Log individual attack
+        if (hit) {
+          get().addLogEntry({
+            type: 'damage',
+            message: `${getUnitDisplayName(enemy)} takes ${damage} damage and is knocked back`,
+            details: `d20(${roll}) + ${unit.attackBonus} = ${total} vs AC ${enemy.ac} | Damage: ${damageDisplay}`
+          })
+        } else {
+          get().addLogEntry({
+            type: 'miss',
+            message: `${getUnitDisplayName(enemy)} avoids the graviton slam`,
+            details: `d20(${roll}) + ${unit.attackBonus} = ${total} vs AC ${enemy.ac}`
+          })
+        }
+      })
+      
+      set((state) => {
+        const stateUnit = state.units.find(u => u.id === unitId)
+        if (!stateUnit) return
+        
+        stateUnit.actionsRemaining -= 2
+        
+        // Clear selection
+        state.selectedAction = null
+        state.validTargets = []
+      })
+      
+      // Log the main action
+      get().addLogEntry({
+        type: 'ability',
+        message: `${getUnitDisplayName(unit)} performs Graviton Slam`,
+        details: `Attacked ${adjacentEnemies.length} adjacent enem${adjacentEnemies.length !== 1 ? 'ies' : 'y'}`
+      })
+    },
+    
+    /**
+     * Asteroid Miner Precision Drilling: Ignore cover for next Strike
+     */
+    precisionDrillingAction: (unitId: string) => {
+      const unit = get().units.find(u => u.id === unitId)
+      if (!unit || unit.actionsRemaining < 2 || unit.class !== 'asteroidMiner') return
+      
+      set((state) => {
+        const stateUnit = state.units.find(u => u.id === unitId)
+        if (!stateUnit) return
+        
+        // Apply precision drilling status effect
+        stateUnit.statusEffects.push({
+          type: 'precisionDrilling',
+          value: 1,
+          duration: 1 // Lasts until next turn or used
+        })
+        
+        stateUnit.actionsRemaining -= 2
+        
+        // Clear selection
+        state.selectedAction = null
+        state.validTargets = []
+      })
+      
+      // Log the action
+      get().addLogEntry({
+        type: 'ability',
+        message: `${getUnitDisplayName(unit)} activates Precision Drilling`,
+        details: 'Next attack ignores cover penalties'
+      })
+    },
+    
+    /**
+     * Brewmaster Engineer Combat Brew: Adjacent ally heals 1d6 OR gains +2 damage
+     */
+    combatBrewAction: (unitId: string, targetId: string, choice: 'heal' | 'damage') => {
+      const unit = get().units.find(u => u.id === unitId)
+      const target = get().units.find(u => u.id === targetId)
+      
+      if (!unit || !target || unit.actionsRemaining < 2 || unit.class !== 'brewmasterEngineer') return
+      
+      // Check if target is adjacent
+      const distance = calculateDistance(unit.position, target.position)
+      if (distance !== 1) {
+        get().addLogEntry({
+          type: 'system',
+          message: 'Combat Brew requires adjacent ally',
+          details: 'Target must be within 1 tile'
+        })
+        return
+      }
+      
+      // Check if target is an ally
+      if (target.type !== 'dwarf' || target.hp <= 0) {
+        get().addLogEntry({
+          type: 'system',
+          message: 'Combat Brew can only target living allied dwarfs',
+          details: 'Select a dwarf ally to assist'
+        })
+        return
+      }
+      
+      set((state) => {
+        const stateUnit = state.units.find(u => u.id === unitId)
+        const stateTarget = state.units.find(u => u.id === targetId)
+        if (!stateUnit || !stateTarget) return
+        
+        if (choice === 'heal') {
+          // Roll 1d6 for healing
+          const healResult = rollDamage('1d6')
+          const actualHealAmount = Math.min(healResult.total, stateTarget.maxHp - stateTarget.hp)
+          stateTarget.hp = Math.min(stateTarget.maxHp, stateTarget.hp + healResult.total)
+          
+          const healDisplay = formatDiceRoll(healResult.rolls, healResult.bonus, '1d6')
+          
+          get().addLogEntry({
+            type: 'heal',
+            message: `${getUnitDisplayName(stateTarget)} healed for ${actualHealAmount} HP`,
+            details: `Healing: ${healDisplay} | Now at ${stateTarget.hp}/${stateTarget.maxHp} HP`
+          })
+        } else {
+          // Apply damage buff
+          // Remove any existing combat brew damage effect first
+          stateTarget.statusEffects = stateTarget.statusEffects.filter(e => e.type !== 'combatBrewDamage')
+          stateTarget.statusEffects.push({
+            type: 'combatBrewDamage',
+            value: 2,
+            duration: 1 // Lasts until next turn
+          })
+          
+          get().addLogEntry({
+            type: 'ability',
+            message: `${getUnitDisplayName(stateTarget)} gains +2 damage bonus`,
+            details: 'Bonus applies to next attack'
+          })
+        }
+        
+        stateUnit.actionsRemaining -= 2
+        
+        // Clear selection
+        state.selectedAction = null
+        state.validTargets = []
+      })
+      
+      // Log the main action
+      get().addLogEntry({
+        type: 'ability',
+        message: `${getUnitDisplayName(unit)} gives ${getUnitDisplayName(target)} a combat brew`,
+        details: choice === 'heal' ? 'Healing variant' : 'Damage boost variant'
+      })
+    },
+    
+    /**
+     * Enhanced Take Cover: Pathfinder 2e Take Cover action
+     * Upgrades existing cover or provides Standard Cover if none
+     */
+    takeCoverEnhancedAction: (unitId: string) => {
+      const unit = get().units.find(u => u.id === unitId)
+      if (!unit || unit.actionsRemaining <= 0) return
+      
+      set((state) => {
+        const stateUnit = state.units.find(u => u.id === unitId)
+        if (!stateUnit) return
+        
+        // Remove any existing Take Cover effect first
+        stateUnit.statusEffects = stateUnit.statusEffects.filter(e => e.type !== 'takingCoverEnhanced')
+        
+        // Apply Take Cover Enhanced status effect
+        stateUnit.statusEffects.push({
+          type: 'takingCoverEnhanced',
+          value: 1, // Used as a flag
+          duration: 1 // Lasts until next turn or until unit moves
+        })
+        
+        stateUnit.actionsRemaining -= 1
+        
+        // Clear selection
+        state.selectedAction = null
+        state.validTargets = []
+      })
+      
+      // Log the action
+      get().addLogEntry({
+        type: 'ability',
+        message: `${getUnitDisplayName(unit)} takes cover`,
+        details: 'Upgrades existing cover or provides Standard Cover (+2 AC)'
       })
     }
   }))

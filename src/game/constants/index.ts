@@ -46,9 +46,9 @@ export const DWARF_STATS: Record<DwarfClass, {
     weaponType: 'ranged',
     damageType: 'laser',
     special: ['precise'],
-    abilityName: 'Precision Drilling',
-    abilityDescription: 'Ignore cover for next Strike',
-    abilityCost: 2
+    abilityName: 'Ore Sense',
+    abilityDescription: 'Reveal 3x3 area through walls',
+    abilityCost: 1
   },
   brewmasterEngineer: {
     hp: 8,

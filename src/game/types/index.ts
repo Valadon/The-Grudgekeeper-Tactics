@@ -9,7 +9,7 @@ export type EnemyClass = 'goblinScavenger' | 'voidHound' | 'corruptedMiningDrone
 export type TurretClass = 'engineerTurret'
 
 export type StatusEffect = {
-  type: 'shieldWall' | 'aimed' | 'defending' | 'prone' | 'shieldRaised' | 'takingCover' | 'braced'
+  type: 'shieldWall' | 'aimed' | 'defending' | 'prone' | 'shieldRaised' | 'takingCover' | 'braced' | 'precisionDrilling' | 'combatBrewDamage' | 'takingCoverEnhanced'
   value: number
   duration: number // rounds remaining
 }
@@ -48,6 +48,14 @@ export type Unit = {
 }
 
 export type CellType = 'floor' | 'wall' | 'crate' | 'door'
+
+export type CoverType = 'none' | 'lesser' | 'standard' | 'greater'
+
+export type CoverInfo = {
+  type: CoverType
+  bonus: number  // AC bonus: 0, 1, 2, or 4
+  source: 'terrain' | 'creature' | 'action' | 'none'
+}
 
 export type Cell = {
   type: CellType
@@ -92,7 +100,7 @@ export type GameState = {
   combatLog: CombatLogEntry[]
 }
 
-export type ActionType = 'move' | 'strike' | 'aim' | 'defend' | 'ability' | 'interact' | 'dropProne' | 'raiseShield' | 'takeCover' | 'brace' | 'reload' | 'step' | 'stride'
+export type ActionType = 'move' | 'strike' | 'aim' | 'defend' | 'ability' | 'interact' | 'dropProne' | 'raiseShield' | 'takeCover' | 'brace' | 'reload' | 'step' | 'stride' | 'shieldWall' | 'gravitonSlam' | 'precisionDrilling' | 'combatBrew' | 'takeCoverEnhanced'
 
 export type DiceRollResult = {
   roll: number

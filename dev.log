@@ -1,0 +1,259 @@
+
+> the-grudgekeeper-tactics@1.0.0 dev
+> next dev
+
+   ▲ Next.js 15.3.3
+   - Local:        http://localhost:3000
+   - Network:      http://192.168.4.52:3000
+
+ ✓ Starting...
+ ✓ Ready in 819ms
+ ○ Compiling /_not-found ...
+ ✓ Compiled /_not-found in 558ms (670 modules)
+ ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+ ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+ GET /_next/static/webpack/d9bfdf03d6bf8d06.webpack.hot-update.json 404 in 133ms
+ GET /_next/static/webpack/d9bfdf03d6bf8d06.webpack.hot-update.json 404 in 692ms
+ ✓ Compiled /game in 268ms (761 modules)
+ GET /game 200 in 258ms
+ GET /game 200 in 258ms
+ ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+ ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+ GET /_next/static/webpack/d9bfdf03d6bf8d06.webpack.hot-update.json 404 in 332ms
+ GET /_next/static/webpack/d9bfdf03d6bf8d06.webpack.hot-update.json 404 in 331ms
+ GET /game 200 in 33ms
+ GET /game 200 in 36ms
+ GET /game 200 in 17ms
+ GET /game 200 in 31ms
+ ✓ Compiled /_error in 254ms (1095 modules)
+ ⨯ [Error: ENOENT: no such file or directory, open '/Users/lance/Programming/The-Grudgekeeper-Tactics/.next/server/app/game/page.js'] {
+  errno: -2,
+  code: 'ENOENT',
+  syscall: 'open',
+  path: '/Users/lance/Programming/The-Grudgekeeper-Tactics/.next/server/app/game/page.js',
+  page: '/game'
+}
+ ⨯ [Error: ENOENT: no such file or directory, open '/Users/lance/Programming/The-Grudgekeeper-Tactics/.next/server/app/game/page.js'] {
+  errno: -2,
+  code: 'ENOENT',
+  syscall: 'open',
+  path: '/Users/lance/Programming/The-Grudgekeeper-Tactics/.next/server/app/game/page.js',
+  page: '/game'
+}
+ GET /game 404 in 558ms
+ GET /game 500 in 381ms
+ GET /game 500 in 435ms
+ ⨯ [Error: ENOENT: no such file or directory, open '/Users/lance/Programming/The-Grudgekeeper-Tactics/.next/server/app/game/page.js'] {
+  errno: -2,
+  code: 'ENOENT',
+  syscall: 'open',
+  path: '/Users/lance/Programming/The-Grudgekeeper-Tactics/.next/server/app/game/page.js',
+  page: '/game'
+}
+ GET /game 500 in 217ms
+ ⨯ [Error: ENOENT: no such file or directory, open '/Users/lance/Programming/The-Grudgekeeper-Tactics/.next/server/app/game/page.js'] {
+  errno: -2,
+  code: 'ENOENT',
+  syscall: 'open',
+  path: '/Users/lance/Programming/The-Grudgekeeper-Tactics/.next/server/app/game/page.js',
+  page: '/game'
+}
+ GET /game 500 in 226ms
+ ⨯ [Error: ENOENT: no such file or directory, open '/Users/lance/Programming/The-Grudgekeeper-Tactics/.next/server/app/game/page.js'] {
+  errno: -2,
+  code: 'ENOENT',
+  syscall: 'open',
+  path: '/Users/lance/Programming/The-Grudgekeeper-Tactics/.next/server/app/game/page.js',
+  page: '/game'
+}
+ GET /game 500 in 242ms
+ ✓ Compiled / in 128ms (1100 modules)
+ GET / 200 in 180ms
+ ⨯ [Error: ENOENT: no such file or directory, open '/Users/lance/Programming/The-Grudgekeeper-Tactics/.next/server/app/_not-found/page.js'] {
+  errno: -2,
+  code: 'ENOENT',
+  syscall: 'open',
+  path: '/Users/lance/Programming/The-Grudgekeeper-Tactics/.next/server/app/_not-found/page.js'
+}
+ ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+ ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+ ⨯ [Error: ENOENT: no such file or directory, open '/Users/lance/Programming/The-Grudgekeeper-Tactics/.next/server/app/game/page.js'] {
+  errno: -2,
+  code: 'ENOENT',
+  syscall: 'open',
+  path: '/Users/lance/Programming/The-Grudgekeeper-Tactics/.next/server/app/game/page.js',
+  page: '/game'
+}
+ ⨯ [Error: ENOENT: no such file or directory, open '/Users/lance/Programming/The-Grudgekeeper-Tactics/.next/server/app/game/page.js'] {
+  errno: -2,
+  code: 'ENOENT',
+  syscall: 'open',
+  path: '/Users/lance/Programming/The-Grudgekeeper-Tactics/.next/server/app/game/page.js',
+  page: '/game'
+}
+ ⨯ [Error: ENOENT: no such file or directory, open '/Users/lance/Programming/The-Grudgekeeper-Tactics/.next/server/app/_not-found/page.js'] {
+  errno: -2,
+  code: 'ENOENT',
+  syscall: 'open',
+  path: '/Users/lance/Programming/The-Grudgekeeper-Tactics/.next/server/app/_not-found/page.js'
+}
+ GET /game 500 in 270ms
+ GET /game 500 in 276ms
+ GET / 200 in 194ms
+ ⨯ [Error: ENOENT: no such file or directory, open '/Users/lance/Programming/The-Grudgekeeper-Tactics/.next/server/app/_not-found/page.js'] {
+  errno: -2,
+  code: 'ENOENT',
+  syscall: 'open',
+  path: '/Users/lance/Programming/The-Grudgekeeper-Tactics/.next/server/app/_not-found/page.js'
+}
+ ⨯ [Error: ENOENT: no such file or directory, open '/Users/lance/Programming/The-Grudgekeeper-Tactics/.next/server/app/_not-found/page.js'] {
+  errno: -2,
+  code: 'ENOENT',
+  syscall: 'open',
+  path: '/Users/lance/Programming/The-Grudgekeeper-Tactics/.next/server/app/_not-found/page.js'
+}
+ GET /_next/static/css/app/layout.css?v=1749338023894 500 in 2040ms
+ GET /_next/static/chunks/main-app.js?v=1749338023894 500 in 2012ms
+ ⨯ [Error: ENOENT: no such file or directory, open '/Users/lance/Programming/The-Grudgekeeper-Tactics/.next/server/app/_not-found/page.js'] {
+  errno: -2,
+  code: 'ENOENT',
+  syscall: 'open',
+  path: '/Users/lance/Programming/The-Grudgekeeper-Tactics/.next/server/app/_not-found/page.js'
+}
+ GET /_next/static/chunks/app-pages-internals.js 500 in 19ms
+<w> [webpack.cache.PackFileCacheStrategy] Caching failed for pack: Error: ENOENT: no such file or directory, rename '/Users/lance/Programming/The-Grudgekeeper-Tactics/.next/cache/webpack/client-development-fallback/0.pack.gz_' -> '/Users/lance/Programming/The-Grudgekeeper-Tactics/.next/cache/webpack/client-development-fallback/0.pack.gz'
+ GET / 200 in 28ms
+ ⨯ [Error: ENOENT: no such file or directory, open '/Users/lance/Programming/The-Grudgekeeper-Tactics/.next/server/app/_not-found/page.js'] {
+  errno: -2,
+  code: 'ENOENT',
+  syscall: 'open',
+  path: '/Users/lance/Programming/The-Grudgekeeper-Tactics/.next/server/app/_not-found/page.js'
+}
+ GET /_next/static/css/app/layout.css?v=1749338027917 500 in 20ms
+ ⨯ [Error: ENOENT: no such file or directory, open '/Users/lance/Programming/The-Grudgekeeper-Tactics/.next/server/app/_not-found/page.js'] {
+  errno: -2,
+  code: 'ENOENT',
+  syscall: 'open',
+  path: '/Users/lance/Programming/The-Grudgekeeper-Tactics/.next/server/app/_not-found/page.js'
+}
+ GET /_next/static/chunks/main-app.js?v=1749338027917 500 in 14ms
+ ⨯ [Error: ENOENT: no such file or directory, open '/Users/lance/Programming/The-Grudgekeeper-Tactics/.next/server/app/_not-found/page.js'] {
+  errno: -2,
+  code: 'ENOENT',
+  syscall: 'open',
+  path: '/Users/lance/Programming/The-Grudgekeeper-Tactics/.next/server/app/_not-found/page.js'
+}
+ GET /_next/static/chunks/app-pages-internals.js 500 in 18ms
+ ⨯ [Error: ENOENT: no such file or directory, open '/Users/lance/Programming/The-Grudgekeeper-Tactics/.next/server/app/game/page.js'] {
+  errno: -2,
+  code: 'ENOENT',
+  syscall: 'open',
+  path: '/Users/lance/Programming/The-Grudgekeeper-Tactics/.next/server/app/game/page.js',
+  page: '/game'
+}
+ GET /game 500 in 240ms
+ GET / 404 in 7ms
+ GET / 404 in 5ms
+ GET / 404 in 5ms
+ GET / 404 in 8ms
+ GET / 404 in 10ms
+ GET / 404 in 7ms
+ GET / 404 in 12ms
+ GET / 404 in 9ms
+ GET / 404 in 4ms
+ GET / 404 in 6ms
+ GET / 404 in 4ms
+ GET / 404 in 10ms
+ GET / 404 in 10ms
+ GET / 404 in 6ms
+ GET / 404 in 6ms
+ GET / 404 in 7ms
+ GET / 404 in 6ms
+ GET / 404 in 11ms
+ GET / 404 in 9ms
+ GET / 404 in 6ms
+ GET / 404 in 11ms
+ GET / 404 in 10ms
+ GET / 404 in 8ms
+ GET / 404 in 15ms
+ GET / 404 in 10ms
+ GET / 404 in 11ms
+ GET / 404 in 5ms
+ GET / 404 in 15ms
+ GET / 404 in 10ms
+ GET / 404 in 9ms
+ GET / 404 in 9ms
+ GET / 404 in 9ms
+ GET / 404 in 6ms
+ GET / 404 in 9ms
+ GET / 404 in 12ms
+ GET / 404 in 9ms
+ GET / 404 in 6ms
+ GET / 404 in 7ms
+ GET / 404 in 9ms
+ GET / 404 in 5ms
+ GET / 404 in 8ms
+ GET / 404 in 9ms
+ GET / 404 in 9ms
+ GET / 404 in 13ms
+ GET / 404 in 8ms
+ GET / 404 in 10ms
+ GET / 404 in 9ms
+ GET / 404 in 8ms
+ GET / 404 in 6ms
+ GET / 404 in 10ms
+ GET / 404 in 11ms
+ GET / 404 in 10ms
+ GET / 404 in 10ms
+ GET / 404 in 11ms
+ GET / 404 in 10ms
+ GET / 404 in 10ms
+ GET / 404 in 10ms
+ GET / 404 in 9ms
+ GET / 404 in 8ms
+ GET / 404 in 9ms
+ GET / 404 in 9ms
+ GET / 404 in 11ms
+ GET / 404 in 10ms
+ GET / 404 in 11ms
+ GET / 404 in 10ms
+ GET / 404 in 9ms
+ GET / 404 in 9ms
+ GET / 404 in 9ms
+ GET / 404 in 9ms
+ GET / 404 in 8ms
+ GET / 404 in 10ms
+ GET / 404 in 10ms
+ GET / 404 in 10ms
+ GET / 404 in 10ms
+ GET / 404 in 10ms
+ GET / 404 in 9ms
+ GET / 404 in 9ms
+ GET / 404 in 11ms
+ GET / 404 in 9ms
+ GET / 404 in 10ms
+ GET / 404 in 10ms
+ GET / 404 in 10ms
+ GET / 404 in 8ms
+ GET / 404 in 9ms
+ GET / 404 in 8ms
+ GET / 404 in 9ms
+ GET / 404 in 8ms
+ GET / 404 in 7ms
+ GET / 404 in 10ms
+ GET / 404 in 10ms
+ GET / 404 in 10ms
+ GET / 404 in 6ms
+ GET / 404 in 5ms
+ GET / 404 in 7ms
+ GET / 404 in 7ms
+ GET / 404 in 8ms
+ GET / 404 in 9ms
+ GET / 404 in 9ms
+ GET / 404 in 10ms
+ GET / 404 in 9ms
+ GET / 404 in 9ms
+ GET / 404 in 10ms
+ GET / 404 in 8ms
+ GET / 404 in 8ms
+ GET / 404 in 6ms

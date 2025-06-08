@@ -84,14 +84,14 @@ export default function ActionBar() {
         disabled: currentUnit.actionsRemaining < 1
       },
       {
-        type: 'takeCover',
-        label: 'Take Cover',
+        type: 'brace',
+        label: 'Brace',
         cost: 1,
         disabled: currentUnit.actionsRemaining < 1
       },
       {
-        type: 'brace',
-        label: 'Brace',
+        type: 'takeCoverEnhanced',
+        label: 'Take Cover',
         cost: 1,
         disabled: currentUnit.actionsRemaining < 1
       }
@@ -104,6 +104,41 @@ export default function ActionBar() {
         label: 'Raise Shield (+2 AC)',
         cost: 1,
         disabled: currentUnit.actionsRemaining < 1
+      })
+      
+      // Add Voidguard abilities
+      actions.push({
+        type: 'shieldWall',
+        label: 'Shield Wall (+1 AC allies)',
+        cost: 1,
+        disabled: currentUnit.actionsRemaining < 1
+      })
+      
+      actions.push({
+        type: 'gravitonSlam',
+        label: 'Graviton Slam (2 actions)',
+        cost: 2,
+        disabled: currentUnit.actionsRemaining < 2
+      })
+    }
+    
+    // Add Asteroid Miner abilities
+    if (currentUnit.class === 'asteroidMiner') {
+      actions.push({
+        type: 'precisionDrilling',
+        label: 'Precision Drilling (2 actions)',
+        cost: 2,
+        disabled: currentUnit.actionsRemaining < 2
+      })
+    }
+    
+    // Add Brewmaster Engineer abilities
+    if (currentUnit.class === 'brewmasterEngineer') {
+      actions.push({
+        type: 'combatBrew',
+        label: 'Combat Brew (2 actions)',
+        cost: 2,
+        disabled: currentUnit.actionsRemaining < 2
       })
     }
     
@@ -118,7 +153,8 @@ export default function ActionBar() {
       })
     }
     
-    if (stats) {
+    // Add old generic ability for classes that still need it
+    if (stats && (currentUnit.class === 'starRanger' || currentUnit.class === 'asteroidMiner')) {
       actions.push({
         type: 'ability',
         label: stats.abilityName,

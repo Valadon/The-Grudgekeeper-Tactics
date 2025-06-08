@@ -104,23 +104,23 @@ This is a comprehensive, step-by-step task list for implementing the new tactica
 ## Phase 6: Class Abilities Implementation
 
 ### Voidguard Abilities
-- [ ] **Shield Wall** (1 action): Adjacent allies get +1 AC while shield raised
-  - [ ] Check if shield is raised
-  - [ ] Apply AC bonus to adjacent allies
-  - [ ] Add visual indicator for affected allies
-- [ ] **Graviton Slam** (2 actions): Strike all adjacent enemies, knock back 1 tile
-  - [ ] Calculate all adjacent enemy positions
-  - [ ] Apply attack roll to each enemy
-  - [ ] Apply knockback to hit enemies
+- [x] **Shield Wall** (1 action): Adjacent allies get +1 AC while shield raised
+  - [x] Check if shield is raised
+  - [x] Apply AC bonus to adjacent allies
+  - [x] Add visual indicator for affected allies
+- [x] **Graviton Slam** (2 actions): Strike all adjacent enemies, knock back 1 tile
+  - [x] Calculate all adjacent enemy positions
+  - [x] Apply attack roll to each enemy
+  - [x] Apply knockback to hit enemies
 - [ ] **Void Anchor** (Reaction): Prevent ally forced movement
   - [ ] Add reaction trigger system
   - [ ] Detect when ally would be moved
   - [ ] Allow Voidguard to negate movement
 
 ### Asteroid Miner Abilities  
-- [ ] **Precision Drilling** (2 actions): Ignore cover for next Strike
-  - [ ] Add temporary status effect
-  - [ ] Modify next attack to bypass cover
+- [x] **Precision Drilling** (2 actions): Ignore cover for next Strike
+  - [x] Add temporary status effect
+  - [x] Modify next attack to bypass cover
 - [ ] **Ore Sense** (1 action): Reveal 3x3 area through walls
   - [ ] Implement area revelation system
   - [ ] Update fog of war/visibility
@@ -130,10 +130,10 @@ This is a comprehensive, step-by-step task list for implementing the new tactica
   - [ ] Update pathfinding after wall destruction
 
 ### Brewmaster Engineer Abilities
-- [ ] **Combat Brew** (2 actions): Adjacent ally heals 1d6 OR gains +2 damage
-  - [ ] Present choice UI to player
-  - [ ] Apply healing or damage buff
-  - [ ] Add visual indicator for damage buff
+- [x] **Combat Brew** (2 actions): Adjacent ally heals 1d6 OR gains +2 damage
+  - [x] Present choice UI to player (defaulting to heal for now)
+  - [x] Apply healing or damage buff
+  - [x] Add visual indicator for damage buff
 - [ ] **Volatile Mix** (1 action): Next shot creates 2x2 difficult terrain
   - [ ] Add temporary status to unit
   - [ ] Modify next Chem-Launcher attack

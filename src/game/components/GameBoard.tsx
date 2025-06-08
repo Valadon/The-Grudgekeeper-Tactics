@@ -4,7 +4,7 @@ import { useRef, useEffect, useCallback } from 'react'
 import { useGameStore } from '../store/gameStore'
 import { GRID_SIZE, CELL_SIZE, UNIT_COLORS, UNIT_INITIALS } from '../constants'
 import { Position } from '../types'
-import { getLineOfSight, getCoverPenalty } from '../utils/gridUtils'
+import { getLineOfSight } from '../utils/gridUtils'
 
 // Animation types removed - now using combat log for all combat feedback
 
@@ -36,6 +36,11 @@ export default function GameBoard() {
     takeCoverAction,
     braceAction,
     reloadAction,
+    shieldWallAction,
+    gravitonSlamAction,
+    precisionDrillingAction,
+    combatBrewAction,
+    takeCoverEnhancedAction,
     hoverCell
   } = useGameStore()
   
@@ -79,8 +84,18 @@ export default function GameBoard() {
     // Handle attack action
     else if (selectedAction === 'strike' && currentUnitId) {
       const targetUnit = units.find(u => u.position.x === x && u.position.y === y)
+      
+      // Debug logging for click detection issues
+      console.log('Strike click at:', { x, y })
+      console.log('Found unit:', targetUnit ? `${targetUnit.id} at (${targetUnit.position.x}, ${targetUnit.position.y})` : 'none')
+      console.log('Valid targets:', validTargets)
+      console.log('Is valid target:', targetUnit ? validTargets.includes(targetUnit.id) : false)
+      
       if (targetUnit && validTargets.includes(targetUnit.id)) {
+        console.log('Executing attack:', currentUnitId, '->', targetUnit.id)
         attackUnit(currentUnitId, targetUnit.id)
+      } else {
+        console.log('Attack blocked - no unit or not valid target')
       }
     } 
     // Handle special abilities
@@ -144,6 +159,39 @@ export default function GameBoard() {
       const targetUnit = units.find(u => u.position.x === x && u.position.y === y)
       if (targetUnit && targetUnit.id === currentUnitId) {
         reloadAction(currentUnitId)
+      }
+    }
+    // Handle class abilities
+    else if (selectedAction === 'shieldWall' && currentUnitId) {
+      const targetUnit = units.find(u => u.position.x === x && u.position.y === y)
+      if (targetUnit && targetUnit.id === currentUnitId) {
+        shieldWallAction(currentUnitId)
+      }
+    }
+    else if (selectedAction === 'gravitonSlam' && currentUnitId) {
+      const targetUnit = units.find(u => u.position.x === x && u.position.y === y)
+      if (targetUnit && targetUnit.id === currentUnitId) {
+        gravitonSlamAction(currentUnitId)
+      }
+    }
+    else if (selectedAction === 'precisionDrilling' && currentUnitId) {
+      const targetUnit = units.find(u => u.position.x === x && u.position.y === y)
+      if (targetUnit && targetUnit.id === currentUnitId) {
+        precisionDrillingAction(currentUnitId)
+      }
+    }
+    else if (selectedAction === 'combatBrew' && currentUnitId) {
+      const targetUnit = units.find(u => u.position.x === x && u.position.y === y)
+      if (targetUnit && validTargets.includes(targetUnit.id)) {
+        // For Combat Brew, we need to present a choice UI
+        // For now, default to healing - we'll improve this later
+        combatBrewAction(currentUnitId, targetUnit.id, 'heal')
+      }
+    }
+    else if (selectedAction === 'takeCoverEnhanced' && currentUnitId) {
+      const targetUnit = units.find(u => u.position.x === x && u.position.y === y)
+      if (targetUnit && targetUnit.id === currentUnitId) {
+        takeCoverEnhancedAction(currentUnitId)
       }
     }
   }
@@ -295,26 +343,8 @@ export default function GameBoard() {
         ctx.stroke()
         ctx.setLineDash([])
         
-        // Show cover penalty
-        const coverPenalty = getCoverPenalty(currentUnit.position, targetUnit.position, grid)
-        if (coverPenalty > 0) {
-          ctx.fillStyle = '#000000'
-          ctx.fillRect(
-            targetUnit.position.x * CELL_SIZE + CELL_SIZE - 25,
-            targetUnit.position.y * CELL_SIZE + 5,
-            20,
-            20
-          )
-          ctx.fillStyle = '#FFFFFF'
-          ctx.font = 'bold 14px monospace'
-          ctx.textAlign = 'center'
-          ctx.textBaseline = 'middle'
-          ctx.fillText(
-            `-${coverPenalty}`,
-            targetUnit.position.x * CELL_SIZE + CELL_SIZE - 15,
-            targetUnit.position.y * CELL_SIZE + 15
-          )
-        }
+        // Legacy cover penalty display removed
+        // TODO: Add back enhanced cover visualization in future visual refresh
       }
     }
     
